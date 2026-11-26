@@ -11,7 +11,7 @@
    - 纯 C# `.NET 8` 单文件自包含，同时支持 **Streamable HTTP** 与 **`--stdio`**，零 Python / Node.js 依赖。
    - **一网关三驱动自动路由**：满血插件（NamedPipe）/ 通用免插件 COM（AutoCAD 2010–2026、中望、浩辰）/ 离线原生 ACadSharp（DWG/DXF），支持多开 CAD `targetPid` / `hostInstanceId` 精准路由与 PID 去重。
    - `sys_capabilities.tools` 与 `tools/list` 42 工具强制 100% 同源对齐。
-   - 内置 **南方 CASS 10/11 + 飞时达 FastTFT V15.x + Autodesk Civil 3D 2019–2026 全部 12 大模块与 BIM 规范目录**（`ui_cass_commands`），以及 Win32 + 进程内双引擎 MFC 弹窗驱动。
+   - 内置 **纬地 HintCAD V8.0 + 南方 CASS 10/11 + 飞时达 FastTFT V15.x + Autodesk Civil 3D 2019–2026 全部 12 大模块与 BIM 规范目录**（`ui_cass_commands`），以及 Win32 + 进程内双引擎 MFC 弹窗驱动。
 
 2. **原生批量建实体与实景回执（全三驱动打通）**
    - 新增 **`write_entities`** 工具：单事务支持创建 `1..5000` 个原生实体（`line` / `polyline` / `rectangle` / `circle` / `arc` / `ellipse` / `text` / `mtext` / `point`），自动建图层与设 ACI 颜色、自动归一化椭圆长短轴比、同步返回精确创建数/句柄/包围盒/失败明细。
@@ -28,8 +28,9 @@
    - 完整感知 Civil 3D 曲面、体积曲面、路线、纵断面、道路、装配、采样线编组、管网、点编组、场地等原生对象；`write_alignment_plan` 自动生成平滑抛物线竖曲线。
    - `write_eval_csharp` 支持 `.NET 8` Roslyn 与 `.NET 4.8` CodeDom 双引擎，自动去重程序集与补齐 `System.Runtime`/`netstandard` 门面引用。
 
-5. **JTG D20-2017 自动选线与经济造价引擎（`route_solver/`）**
+5. **JTG D20-2017 自动选线、经济造价与纬地工程引擎（`route_solver/`）**
    - 支持 20–100 km/h 规范预设、16 邻域等高线贴坡 A*、HiGHS 全局凸 LP 拉坡、最大坡长/缓和坡段自动插入、连续 3 km 均坡 `<= 5.5%`、隧道 `<= 3.0%`、平包竖核验、概算单价库与土石方调配模型。
+   - 新增 **`route_solver/hintcad_io.py`**：一键将选线方案导出为纬地 V8 标准纯文本工程（`.Prj` / `_JD_import.txt` 自动完成 `E/N -> N/E` 互换 / `.ZDM` / `.DMX` / `.sta` / `.ctr` / `.wid`），支持既有 `.Prj` 解析与 `Lst/ERR*.txt` 报错自动诊断。
 
 6. **一体化安装与热更新体验（`EngineeringPlatform-Setup.exe`）**
    - 单页现代化 WinForms 向导 + 静默 CLI，精准写入 `DemandLoad` 与 `Profiles\<name>\Variables\TRUSTEDPATHS`（零启动安全弹窗）。
