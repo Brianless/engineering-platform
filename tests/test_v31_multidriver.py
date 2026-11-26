@@ -363,12 +363,17 @@ def test_com_and_auto_driver(gw_exe: Path) -> None:
                 # Non-existent targetPid on plugin-only mode must cleanly fail with C1001
                 r_bad_pid = _mcp_call(base_url, token, "read_overview", {"_backend": "plugin", "targetPid": 999999}, 24)
                 assert r_bad_pid["isError"] is True and r_bad_pid["structuredContent"]["code"] == "C1001"
-                # CASS command catalog lookup (built-in + optional CUIX fallback)
+                # CASS + HintCAD command catalog lookup (built-in + optional CUIX fallback)
                 r_cass = _mcp_call(base_url, token, "ui_cass_commands", {"query": "方格网"}, 25)
                 assert r_cass["isError"] is False
                 cmds = [c["command"] for c in r_cass["structuredContent"]["commands"]]
                 assert "fgwtf" in cmds, f"Expected fgwtf in CASS catalog, got {cmds}"
-                print(f"[PASS] Auto mode PID deduplication ({len(insts)} unique endpoints), targetPid, hostInstanceId & CASS catalog ({len(cmds)} matches) verified")
+                r_hint = _mcp_call(base_url, token, "ui_cass_commands", {"query": "纬地"}, 26)
+                assert r_hint["isError"] is False
+                hint_sc = r_hint["structuredContent"]
+                assert len(hint_sc["commands"]) >= 10, f"Expected >=10 HintCAD commands, got {len(hint_sc['commands'])}"
+                assert "hintcadCoordRule" in hint_sc and "hintcadPipelineRule" in hint_sc
+                print(f"[PASS] Auto mode PID deduplication ({len(insts)} unique endpoints), targetPid, hostInstanceId & CASS+HintCAD catalog ({len(cmds)}+{len(hint_sc['commands'])} matches) verified")
             finally:
                 _stop_gateway(proc)
 

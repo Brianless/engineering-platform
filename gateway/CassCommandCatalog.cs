@@ -142,7 +142,35 @@ internal static class CassCommandCatalog
         new("Civil3D出图与协同", "图框组/自动分幅出图/数据快捷方式(ViewFrameGroup/DataShortcut)", "CREATEVIEWFRAMES / CREATESHEETS / MANAGEDATASHORTCUTS", "dotnet_api",
             "CivilDocument.GetViewFrameGroupIds() 实现平纵组合自动分幅出图；AeccDataShortcutMgd (DREFs) 实现路线/曲面/管网多专业动态协同引用；中文表格须建 TrueType Microsoft YaHei 文字样式防问号乱码"),
         new("Civil3D_BIM交付", "道路实体导出/PBR材质/PropertySet/IFC4.3与LandXML", "EXPORTCORRIDORTOSOLIDS / IFCINFRAEXPORT / LANDXMLOUT", "dotnet_api",
-            "Corridor.ExportSolids(ExportCorridorSolidsParams, db) 导出分层真三维实体（沥青面层/水稳基层/路缘石/边沟/放坡）+ 配套三维重力挡墙/桥梁/波形护栏/路面标线 + AutoCAD Material 真实材质 + Shaded/Realistic 渲染 + PropertySet BIM属性 + IFC4.3/LandXML 交付；**性能避坑**：当原地面 TIN 超 50 万三角面时，切 3D 渲染前应优先用 Shaded 样式或仅开启 BIM+走廊+等高线显示，避免 100 万级 TIN 实时 Realistic 材质重算卡顿主线程")
+            "Corridor.ExportSolids(ExportCorridorSolidsParams, db) 导出分层真三维实体（沥青面层/水稳基层/路缘石/边沟/放坡）+ 配套三维重力挡墙/桥梁/波形护栏/路面标线 + AutoCAD Material 真实材质 + Shaded/Realistic 渲染 + PropertySet BIM属性 + IFC4.3/LandXML 交付；**性能避坑**：当原地面 TIN 超 50 万三角面时，切 3D 渲染前应优先用 Shaded 样式或仅开启 BIM+走廊+等高线显示，避免 100 万级 TIN 实时 Realistic 材质重算卡顿主线程"),
+
+        // === 10. 纬地道路交通辅助设计系统 HintCAD V8.0 + 全家桶（项目/数据/平纵横/出图出表/平交/数模/地形三维化/BIM） ===
+        new("纬地项目", "新建/打开项目与项目管理器(Prj)", "NEW_PROJECT / OPEN_PROJECT / HPM", "mfc_dialog",
+            "管理纬地总控 .Prj 文件（HINTCAD6.00_PRJ_SHUJU）及 25 类纯文本数据文件映射；SETHM 可呼出或切换纬地菜单；HWIZARD 打开设计向导；HINT_CONF 配置默认图框与表格模板"),
+        new("纬地数据接口", "平面交点坐标/转角导入导出(JDZB_IN/JD_IN)", "JDZB_IN / JD_IN", "mfc_dialog_with_browse",
+            "**致命坐标坑**：纬地交点与曲线文件采用大地测量坐标（X=北坐标N，Y=东坐标E），与 AutoCAD 图形坐标（X=东E，Y=北N）恰好互换！导入外部交点表前必须确认已做 (E,N)<->(N,E) 互换；虚交填 0 表示正常交点"),
+        new("纬地数据接口", "纵横断面地面线输入与外部格式转换", "DATTOOL / HDMTOOL / CONVERT_HDM", "mfc_dialog",
+            "支持通过 .fmt 格式定义导入南方 CASS / RTK / 海德 / Card1 等 11 种横断面格式并互转相对前点/相对中桩；CRSTA 生成桩号序列 .sta 文件"),
+        new("纬地数据接口", "纵横断面数据一致性检查与控制参数", "CHECK_HDM_DMX / CTREDIT", "mfc_dialog",
+            "修改平面、纵断面或桩号序列后务必先跑 CHECK_HDM_DMX 核对 .DMX/.HDM/.sta 桩号一致性；CTREDIT 编辑 .ctr 控制参数（边坡、边沟、排水沟、土石方比例、桥涵起终点 QHSJ/HDSJ）"),
+        new("纬地核心设计", "主线平面设计(交点法)与立交平面设计(曲线法)", "JDPM / HT / PM_ZHNBX", "mfc_dialog",
+            "JDPM 用于主线交点控制法平面设计；HT 用于立交匝道曲线法设计（支持卵型曲线、S型、C型）；PM_ZHNBX 智能布线；CALZH 搜索桩号、CALDB 搜索端部、DEL_ROAD 删除路线"),
+        new("纬地核心设计", "纵断面动态拉坡设计与绘图", "ZDMSJ / ZDMT / CALZPB", "mfc_dialog",
+            "ZDMSJ 进入 HZdmWnd 交互动态拉坡窗口（修改后自动生成 .ZDM 变坡点文件）；ZDMT 批量绘制纵断面图/纵断缩图；CALZPB 输出竖曲线表"),
+        new("纬地核心设计", "路基设计计算(超高/加宽/中间数据)", "LJSJ / LJSJB", "mfc_dialog",
+            "**核心铁律**：凡改动 .JD/.pm/.ZDM/.sup/.wid/.sta 任一文件，必须先重跑 LJSJ 生成最新 .lj 路基中间数据，否则横断面设计会报「该断面缺少路基设计中间数据」；LJSJB 输出路基设计表"),
+        new("纬地核心设计", "横断面详细设计绘图与土石方修改", "HDM_NEW / EDITTF / DRAW_TAIJIE / HDMSJX_INTER / HDM_LIST", "mfc_dialog",
+            "HDM_NEW 依赖 .lj + .HDM + .ctr 批量设计横断面并生成 .TF 土方文件；**高频报错避坑**：若报错「边坡无法与地面线相交」应先用 HDTM_EXHDM 补测加宽 .HDM 或在 .ctr 设挡土墙/桥梁；若报「排水沟失败」需调小起设填高或改边沟；DRAW_TAIJIE 挖台阶、HDMSJX_INTER 分离式路基、HDM_LIST 重新分图"),
+        new("纬地绘图出表", "平面自动分图与批量裁图/出图", "PMCT / TRIM_PMT / ZTT / ZDT / ZTTBZ / PLOT_ALL / SPLIT_DWG", "mfc_dialog_or_lisp",
+            "**Express Tools 依赖坑**：TRIM_PMT / TRIM_IN / TRIM_TO 强依赖 AutoCAD Express Tools（acetutil.fas + extrim.lsp），且须先运行 PMCT 生成 pmft.tmp；ZTT 总体布置图、ZDT 用地图、ZTTBZ 构造物标注、SPLIT_DWG 拆分单页 DWG；表格模板位于 HintCAD\\模板\\表格\\*.xls/*.doc"),
+        new("纬地平交口", "平交口三维建模、立面等高线与网格标注", "PJK_LG_SET / PJK_CREAT / PJK_DRAW_CONTOUR / PJK_BZ_WG", "mfc_dialog",
+            "标准链：PJK_LG_SET(路拱设置) → PJK_CREAT(创建平交口模型) → PJK_SET_CONTOUR + PJK_DRAW_CONTOUR(立面等高线) → PJK_BZ_SET + PJK_BZ_WG + PJK_BZ_WGJL(网格与板块宽度标注)"),
+        new("纬地数模DTM", "数模构建、预检优化与纵横断面采数", "DTM / NEWDTM / READDWG / CHECKNET / TRI / HDTM_OPT_BOUND / GETDMX / GETHDM / HDTM_EXHDM", "mfc_dialog",
+            "**防飞点铁律**：读入三维地形数据后必须先跑 CHECKNET（查 SortPt.err 消除零高程/重复点/飞点）再 TRI 构网与 HDTM_OPT_BOUND 裁剪凹包边界；GETDMX 采纵断地面线、GETHDM 采横断地面线、HDTM_EXHDM 补测加宽横断面；OF3DFACE/ROAD3D/HINT_BIM 输出三维地面与路线 BIM 模型"),
+        new("纬地地形三维化", "二维地形图智能点/等高线赋值", "HDTM_AUTO_PTZ / HDTM_AUTO_DGXZ / HDTM_BPTADDZ / HDTM_CNADDZ", "mfc_dialog",
+            "将无 Z 值的二维地形图文字注记与等高线批量赋高程转化为真三维地形图，再送入 NEWDTM / READDWG 构网"),
+        new("纬地辅助与专项", "坐标网/锥坡/示坡线与路基涵洞挡墙隧道协同", "WANGGE / ZP / SPX / PPT / XYZ", "cmdline_or_dialog",
+            "WANGGE 绘坐标网、ZP 绘桥台椭圆锥坡、SPX 示坡线、XYZ 智能坐标标注；AutoCAD 2014 纬地通过 ep-mcp 通用 COM 驱动 + Win32DialogDriver 协同（须保持与 CAD 同权限同桌面，且禁止 ACadSharp 原地覆写含 HINTCAD_HHDM* 自定义对象的图纸）")
     ];
 
     public static JsonObject Search(JsonObject args)
@@ -186,13 +214,15 @@ internal static class CassCommandCatalog
 
         return new JsonObject
         {
-            ["summary"] = $"【南方 CASS + 飞时达 FastTFT + Civil 3D 全功能目录】匹配内置 {matches.Count} 条" + (cuixHits.Count > 0 ? $" + 本机 CUIX 补充 {cuixHits.Count} 条" : "") + $"（关键词='{query}'）。",
+            ["summary"] = $"【南方 CASS + 飞时达 FastTFT + Civil 3D + 纬地 HintCAD V8 全功能目录】匹配内置 {matches.Count} 条" + (cuixHits.Count > 0 ? $" + 本机 CUIX 补充 {cuixHits.Count} 条" : "") + $"（关键词='{query}'）。",
             ["commands"] = arr,
             ["cuixExtraMatches"] = cuixHits,
             ["datFormatRule"] = "南方 CASS / 飞时达通用 .dat 格式：点号,编码(可空),AutoCAD东坐标X,AutoCAD北坐标Y,高程H（如 1,,607560.080,3544468.790,69.340）",
             ["southXDataRule"] = "南方 CASS 高程点编码：RegApp='SOUTH'，1000='202101'，图层='GCD'",
             ["fastTftPipelineRule"] = "飞时达 FastTFT V15.x 零点击方格网标准链：GPFILETOLSD(导入离散点+关二级提示框) → TFCREATEREGION(OSMODE=0 + D逐点描绘闭合 + N单区块) → TFAUTOFG(A + 设对准点/间距/0° + cancel退出) → TFGATHERNATURE(A→A + cancel) → TFDESIGNIMPORT(点区块内部点 + 设统一高度 + cancel) → TFFGCALVOL(确认参数→点区块内部点→读并关闭结果框→cancel) → TFFGCOLLECT / TFFGSTATTABLE",
-            ["civil3dBimPipelineRule"] = "Civil 3D 2019–2026 设计院级 + LOD 300 BIM 全自动链：TinSurface(裁剪凹包长边) → route_solver(JTG D20平纵优化+经济比选+调配) → Alignment + Profile(AddFreeSymmetricParabolaByPVIAndCurveLength) + ProfileView → Assembly(DaylightMaxWidth限宽) → Corridor(多区域+目标曲面+Datum曲面) → Tx2(Datum长边裁剪+TinVolumeSurface算土方) → Corridor.ExportSolids + 三维挡墙/桥梁/护栏/标线 + PBR Material + Realistic渲染 + PropertySet/IFC4.3 + 纬地HintCAD报表"
+            ["civil3dBimPipelineRule"] = "Civil 3D 2019–2026 设计院级 + LOD 300 BIM 全自动链：TinSurface(裁剪凹包长边) → route_solver(JTG D20平纵优化+经济比选+调配) → Alignment + Profile(AddFreeSymmetricParabolaByPVIAndCurveLength) + ProfileView → Assembly(DaylightMaxWidth限宽) → Corridor(多区域+目标曲面+Datum曲面) → Tx2(Datum长边裁剪+TinVolumeSurface算土方) → Corridor.ExportSolids + 三维挡墙/桥梁/护栏/标线 + PBR Material + Realistic渲染 + PropertySet/IFC4.3 + 纬地HintCAD报表",
+            ["hintcadPipelineRule"] = "纬地 HintCAD V8.0 标准工程链（支持 route_solver.hintcad_io 直写 .Prj/.JD/.ZDM/.DMX/.ctr/.wid/.sta 纯文本工程）：NEWDTM/READDWG → CHECKNET(查SortPt.err) → TRI → HDTM_OPT_BOUND → JDPM/JDZB_IN → GETDMX/GETHDM → ZDMSJ → CHECK_HDM_DMX → LJSJ(必跑生成.lj) → HDM_NEW(遇边坡不交地面线用 HDTM_EXHDM 补测或设挡墙) → ZDMT/PMCT+TRIM_PMT/LJSJB/CALZPB；AutoCAD 2014 纬地走 COM 驱动 + Win32DialogDriver",
+            ["hintcadCoordRule"] = "纬地坐标强约束：.JD/.pm/交点导入表与逐桩坐标表中 X=测量北坐标(N)、Y=测量东坐标(E)，与 AutoCAD 图形空间 (X=东E, Y=北N) 互换，跨系统读写必须互换 (N,E)<->(X,Y)"
         };
     }
 

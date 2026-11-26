@@ -12,6 +12,7 @@ from typing import Any, Dict, List, Optional, Tuple
 from .cost_field import CostField, CostWeights, load_constraints_geojson, load_terrain_npz
 from .economics import HighwayUnitPrices, export_economic_comparison_csv
 from .evaluator import RouteEvaluator, build_plan_payload
+from .hintcad_io import export_hintcad_project
 from .horizontal_solver import DesignSpeedSpec, HorizontalSolver
 from .vertical_solver import VerticalSolver
 
@@ -79,8 +80,10 @@ def run_pipeline(
     target_dir.mkdir(parents=True, exist_ok=True)
 
     plan_files: List[str] = []
+    payloads_by_id: Dict[int, Dict[str, Any]] = {}
     for hp, vp, m in zip(h_plans, v_plans, metrics_list):
         payload = build_plan_payload(hp, vp, m)
+        payloads_by_id[hp.plan_id] = payload
         out_file = target_dir / f"plan_{hp.plan_id}.json"
         with out_file.open("w", encoding="utf-8") as f:
             json.dump(payload, f, ensure_ascii=False, indent=2)
@@ -91,14 +94,24 @@ def run_pipeline(
         target_dir / "economic_comparison.csv",
     )
 
+    rec_id = min(metrics_list, key=lambda m: m.rank).plan_id
+    hintcad_info = export_hintcad_project(
+        payloads_by_id[rec_id],
+        out_dir=target_dir / "hintcad_project",
+        project_name=f"EP_Plan_{rec_id}",
+        design_speed_kmh=spec.design_speed_kmh,
+        road_width_m=rw,
+    )
+
     summary = {
         "design_speed_kmh": spec.design_speed_kmh,
         "num_plans": len(metrics_list),
         "weights": weights.to_dict(),
         "plans": [m.to_dict() for m in metrics_list],
-        "recommended_plan_id": min(metrics_list, key=lambda m: m.rank).plan_id,
+        "recommended_plan_id": rec_id,
         "plan_files": plan_files,
         "economic_comparison_csv": str(econ_csv),
+        "hintcad_project": hintcad_info,
     }
     summary_file = target_dir / "summary.json"
     with summary_file.open("w", encoding="utf-8") as f:

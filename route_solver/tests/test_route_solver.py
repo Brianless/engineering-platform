@@ -159,6 +159,67 @@ class TestRouteSolver(unittest.TestCase):
             cf = CostField(tg, weights=CostWeights())
             self.assertTrue(np.all(np.isfinite(cf.cost_grid)))
 
+    def test_hintcad_project_export_parse_and_err_diagnostics(self) -> None:
+        from route_solver.hintcad_io import (
+            diagnose_hintcad_errors,
+            export_hintcad_project,
+            parse_hintcad_project,
+        )
+
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp_dir = Path(tmp)
+            sample_plan = {
+                "plan_id": 1,
+                "metrics": {"total_length_m": 1000.0},
+                "alignment": {
+                    "design_speed_kmh": 60,
+                    "total_length_m": 1000.0,
+                    "jds": [[500100.0, 3100200.0], [500600.0, 3100500.0], [501000.0, 3100400.0]],
+                    "curves": [{"jd_index": 1, "radius_m": 300.0, "spiral_length_m": 70.0}],
+                },
+                "profile": {
+                    "pvis": [
+                        {"station_m": 0.0, "elevation_m": 120.0, "curve_length_m": 0.0},
+                        {"station_m": 500.0, "elevation_m": 135.0, "vertical_radius_m": 3000.0},
+                        {"station_m": 1000.0, "elevation_m": 128.0, "curve_length_m": 0.0},
+                    ]
+                },
+                "sampled_centerline": [
+                    {"station_m": 0.0, "x": 500100.0, "y": 3100200.0, "ground_z": 119.5, "design_z": 120.0},
+                    {"station_m": 500.0, "x": 500600.0, "y": 3100500.0, "ground_z": 134.0, "design_z": 135.0},
+                    {"station_m": 1000.0, "x": 501000.0, "y": 3100400.0, "ground_z": 127.8, "design_z": 128.0},
+                ],
+            }
+            out = export_hintcad_project(sample_plan, tmp_dir / "hint_out", project_name="TestRoad", design_speed_kmh=60)
+            for key in ("prj", "jd_import", "zdm", "dmx", "sta", "ctr", "wid", "guide"):
+                self.assertTrue(Path(out[key]).is_file(), f"Missing HintCAD file: {key}")
+
+            # Verify AutoCAD (E=500100, N=3100200) -> HintCAD (X=N=3100200, Y=E=500100) swap
+            jd_txt = Path(out["jd_import"]).read_bytes().decode("gbk")
+            self.assertIn("QD\t3100200.0000\t500100.0000", jd_txt)
+            self.assertIn("JD1\t3100500.0000\t500600.0000\t300.000\t70.000\t70.000\t0", jd_txt)
+
+            parsed = parse_hintcad_project(out["prj"])
+            self.assertEqual(parsed["project_name"], "TestRoad")
+            self.assertEqual(parsed["design_speed_kmh"], 60)
+            self.assertEqual(parsed["pvi_count"], 3)
+            self.assertEqual(parsed["dmx_count"], 3)
+            self.assertEqual(parsed["station_count"], 3)
+
+            err_file = tmp_dir / "ERR1001.txt"
+            err_file.write_bytes(
+                (
+                    "1170.000: 设计右侧挖方边坡失败，可能是边坡无法与地面线相交。\r\n"
+                    "897.391: 设置左侧排水沟失败，可能是边沟边线不能与地面线相交。\r\n"
+                    "211.194: 该断面缺少路基设计中间数据。\r\n"
+                ).encode("gbk")
+            )
+            diag = diagnose_hintcad_errors(err_file)
+            self.assertEqual(diag["total_error_lines"], 3)
+            self.assertEqual(diag["categories"]["cut_slope_no_intersect"]["count"], 1)
+            self.assertEqual(diag["categories"]["ditch_no_intersect"]["count"], 1)
+            self.assertEqual(diag["categories"]["missing_lj_data"]["count"], 1)
+
 
 if __name__ == "__main__":
     unittest.main()
