@@ -1,0 +1,18 @@
+{
+  "//": "WorkBuddy MCP 注册片段样例。本平台不自动写入用户配置；请执行 tools/register_mcp.ps1 打印片段，确认后加 -Apply（写入前自动备份）。",
+  "//1": "把 <EP_ROOT> 替换为本仓库绝对路径；Windows 路径用双反斜杠或正斜杠。",
+  "mcpServers": {
+    "engineering-platform": {
+      "type": "stdio",
+      "command": "python",
+      "args": [
+        "<EP_ROOT>/mcp/engineering_mcp.py"
+      ],
+      "env": {
+        "PYTHONIOENCODING": "utf-8",
+        "PYTHONUNBUFFERED": "1",
+        "EP_LOG_LEVEL": "INFO"
+      }
+    }
+  }
+}

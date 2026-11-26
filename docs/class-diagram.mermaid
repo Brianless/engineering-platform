@@ -1,0 +1,156 @@
+%% Engineering Platform M0 —— 类图（与 docs/00-M0-实施设计.md §5.1 一致）
+%% 渲染：mermaid-cli / VS Code Mermaid 插件 / WorkBuddy 预览
+classDiagram
+  direction TB
+
+  %% ---------- Python: MCP 层 ----------
+  class EngineeringMcp {
+    +main() int
+    -_read_loop()
+    -_dispatch(req) dict
+    -_initialize(params) dict
+    -_tools_list(params) dict
+    -_tools_call(params) dict
+  }
+  class ToolCatalog {
+    +TOOLS: dict
+    +list_tools() list
+    +schema(name) dict
+    +validate(name, args) list
+    +annotations(name) dict
+  }
+  class PipeClient {
+    -_handle: HANDLE
+    -_reader: Thread
+    -_pending: dict
+    +connect(timeout_ms)
+    +handshake(client_info) HandshakeInfo
+    +call(tool, params, timeout_ms) dict
+    +cancel(op_id)
+    +close()
+  }
+  class InstanceRegistry {
+    +list_instances() list
+    +pick(preferred) InstanceInfo
+  }
+  class Budget {
+    +max_result_chars: int
+    +truncate(payload) tuple
+  }
+  class PreviewBridge {
+    +to_image_content(path) dict
+  }
+  class Store {
+    +init_schema()
+    +record_task(task)
+    +record_audit(entry)
+    +query_tasks(limit)
+  }
+  class Reconcile {
+    +reconcile(op_id) dict
+  }
+  class AuditLog {
+    +write(level, event, fields)
+  }
+
+  %% ---------- C#: Host 层 ----------
+  class HostRuntime {
+    +Instance: HostRuntime
+    +Start()
+    +Stop()
+    +Submit(WorkItem) Result
+  }
+  class PipeServer {
+    +Start()
+    +Stop()
+    -_acceptLoop()
+    -_onConnection(PipeConnection)
+  }
+  class PipeConnection {
+    +ReadLoop()
+    +WriteFrame(bytes)
+    +Close()
+  }
+  class Framing {
+    +MaxPayloadBytes: int
+    +ReadFrame(stream, outStatus) bytes
+    +WriteFrame(stream, payload)
+  }
+  class MainThreadDispatcher {
+    +Start()
+    +Submit(WorkItem, waitMs) Result
+    +OnIdle(sender, e)
+  }
+  class HostStateProbe {
+    +Probe(doc) GateResult
+  }
+  class SessionRegistry {
+    +HostInstanceId: string
+    +IssueToken() string
+    +Validate(token) bool
+    +PublishDiscoveryFile()
+    +RemoveDiscoveryFile()
+  }
+  class ToolRouter {
+    +Dispatch(tool, params, opId) dict
+    +RejectWriteDomain(tool) dict
+  }
+  class SemanticExtractor {
+    +Extract(doc, limit) SemanticModel
+  }
+  class SemanticRecognizer {
+    +Recognize(model, mapping) SemanticModel
+  }
+  class AnomalyScanner {
+    +Scan(model) list
+  }
+  class SemanticCache {
+    +Get(fingerprint) SemanticModel
+    +Put(fingerprint, model)
+    +InvalidateAll()
+  }
+  class LayerMapping {
+    +Load(path) LayerMapping
+    +MatchLayer(name) RecognizedMeaning
+    +MatchBlock(name) RecognizedMeaning
+  }
+  class DrawingFingerprint {
+    +Compute(db, doc) string
+  }
+  class PreviewRenderer {
+    +Render(model, extent, w, h) PreviewResult
+  }
+  class LocalPanelForm
+  class HostLog
+
+  EngineeringMcp --> ToolCatalog
+  EngineeringMcp --> PipeClient
+  EngineeringMcp --> Budget
+  EngineeringMcp --> Store
+  EngineeringMcp --> AuditLog
+  EngineeringMcp --> PreviewBridge
+  PipeClient --> InstanceRegistry
+  PipeClient ..> Framing : 4字节LE分帧
+  Reconcile --> PipeClient
+  Reconcile --> Store
+  PreviewBridge --> Store
+
+  HostRuntime *-- PipeServer
+  HostRuntime *-- MainThreadDispatcher
+  HostRuntime *-- SessionRegistry
+  HostRuntime *-- ToolRouter
+  HostRuntime *-- SemanticCache
+  HostRuntime *-- PreviewRenderer
+  PipeServer *-- PipeConnection
+  PipeConnection --> Framing
+  PipeConnection --> MainThreadDispatcher
+  MainThreadDispatcher --> HostStateProbe
+  ToolRouter --> SemanticExtractor
+  ToolRouter --> PreviewRenderer
+  ToolRouter --> AnomalyScanner
+  SemanticExtractor --> DrawingFingerprint
+  SemanticExtractor --> LayerMapping
+  SemanticRecognizer --> LayerMapping
+  SemanticCache --> SemanticExtractor
+  MainThreadDispatcher ..> LocalPanelForm : 任务列表数据源
+  HostRuntime --> HostLog

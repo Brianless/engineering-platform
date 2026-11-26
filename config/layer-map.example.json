@@ -1,0 +1,23 @@
+{
+  "version": "1.0",
+  "kind": "layer-map",
+  "note": "企业图层映射样例（道路 / 场地 / 排水三类）。复制到 %LOCALAPPDATA%\\EngineeringPlatform\\layer-map.json 后由宿主加载；pattern 大小写不敏感，支持 * 与 ?。confidencePct 为整数百分比（避免双端浮点格式化差异）。",
+  "patterns": [
+    { "pattern": "D-RD-*中线*", "meaning": "道路中线", "category": "roadway", "confidencePct": 95 },
+    { "pattern": "D-RD-*边线*", "meaning": "道路边线", "category": "roadway", "confidencePct": 92 },
+    { "pattern": "D-RD-*路面*", "meaning": "路面范围", "category": "roadway", "confidencePct": 92 },
+    { "pattern": "D-RD-*缘石*", "meaning": "路缘石", "category": "roadway", "confidencePct": 90 },
+    { "pattern": "D-RD-*竖曲线*", "meaning": "竖曲线标注", "category": "roadway", "confidencePct": 88 },
+
+    { "pattern": "D-SITE-*边界*", "meaning": "场地边界", "category": "site", "confidencePct": 93 },
+    { "pattern": "D-SITE-*等高线*", "meaning": "等高线", "category": "terrain", "confidencePct": 92 },
+    { "pattern": "D-SITE-*地形*", "meaning": "地形点", "category": "terrain", "confidencePct": 90 },
+    { "pattern": "D-SITE-*开挖*", "meaning": "开挖范围", "category": "site", "confidencePct": 88 },
+
+    { "pattern": "D-DR-*管*", "meaning": "排水管道", "category": "drainage", "confidencePct": 94 },
+    { "pattern": "D-DR-*沟*", "meaning": "排水沟", "category": "drainage", "confidencePct": 94 },
+    { "pattern": "D-DR-*井*", "meaning": "检查井", "category": "drainage", "confidencePct": 92 },
+    { "pattern": "D-DR-*涵*", "meaning": "涵洞", "category": "drainage", "confidencePct": 90 },
+    { "pattern": "D-DR-*汇水*", "meaning": "汇水分区", "category": "drainage", "confidencePct": 85 }
+  ]
+}

@@ -1,0 +1,50 @@
+<Project>
+  <!--
+    Host 统一构建属性。
+    硬约束：C# 语言级别锁 7.3（禁用 record / init / 文件作用域 namespace / 可空引用类型）。
+    目标框架 net48：AutoCAD 2022 / Civil 3D 2024 的托管 API 要求 .NET Framework 4.8
+    （Civil 3D 2019 运行时是 4.7，用 net48 产物加载需实测，见 docs/05-验收记录.md）。
+
+    第二轮（Civil 3D 已安装）新增：
+    - AcadRoot：可切换宿主根目录，默认 Civil 3D 2024 简体中文公制。
+    - AcadCivilDir：Civil 3D 托管 API 子目录（<AcadRoot>\C3D\），不是根目录。
+    - HasCivilAssemblies：探测 AeccDbMgd.dll 是否存在，决定是否引用 Civil API
+      并定义编译常量 CIVIL3D（AutoCAD 2022 无 C3D\ 子目录 → 不引用，代码走反射探测）。
+  -->
+  <PropertyGroup>
+    <LangVersion>7.3</LangVersion>
+    <PlatformTarget>x64</PlatformTarget>
+    <Deterministic>true</Deterministic>
+    <DebugType>portable</DebugType>
+    <NoWarn>$(NoWarn);CS1591</NoWarn>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+    <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
+
+    <!-- 宿主根目录：优先 -p:AcadRoot 或环境变量 EP_ACAD2024_ROOT，其次自动探测标准 Program Files 安装目录 -->
+    <AcadRoot Condition="'$(AcadRoot)' == '' and '$(EP_ACAD2024_ROOT)' != ''">$(EP_ACAD2024_ROOT)</AcadRoot>
+    <AcadRoot Condition="'$(AcadRoot)' == '' and Exists('C:\Program Files\Autodesk\AutoCAD 2024\acmgd.dll')">C:\Program Files\Autodesk\AutoCAD 2024</AcadRoot>
+    <AcadRoot Condition="'$(AcadRoot)' == '' and Exists('D:\AutoCAD\AotoCAD Civil\AutoCAD 2024\acmgd.dll')">D:\AutoCAD\AotoCAD Civil\AutoCAD 2024</AcadRoot>
+    <AcadRoot Condition="'$(AcadRoot)' == ''">C:\Program Files\Autodesk\AutoCAD 2024</AcadRoot>
+
+    <!-- 兼容既有脚本：build.ps1 / build.sh / smoke.ps1 仍在传 -p:AutoCADDir=... -->
+    <AutoCADDir Condition="'$(AutoCADDir)' == ''">$(AcadRoot)</AutoCADDir>
+
+    <!-- Civil 3D 托管 API 位于 <AcadRoot>\C3D\，与 acmgd.dll 不在同一层 -->
+    <AcadCivilDir Condition="'$(AcadCivilDir)' == ''">$(AcadRoot)\C3D</AcadCivilDir>
+
+    <!-- 探测：AeccDbMgd.dll 存在才引用 Civil API（AutoCAD 2022 没有 C3D 子目录） -->
+    <HasCivilAssemblies Condition="'$(HasCivilAssemblies)' == '' and Exists('$(AcadCivilDir)\AeccDbMgd.dll')">true</HasCivilAssemblies>
+    <HasCivilAssemblies Condition="'$(HasCivilAssemblies)' == ''">false</HasCivilAssemblies>
+
+    <Product>Engineering Platform Host</Product>
+    <Company>Engineering Platform</Company>
+    <AssemblyVersion>1.0.0.0</AssemblyVersion>
+    <FileVersion>1.0.0.0</FileVersion>
+    <Version>1.0.0</Version>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(HasCivilAssemblies)' == 'true' and '$(HOST_BUILD_NO_CAD)' != '1'">
+    <!-- Civil API 引用可用 → 开启 CIVIL3D；无 CAD 骨架构建不定义 -->
+    <DefineConstants>$(DefineConstants);CIVIL3D</DefineConstants>
+  </PropertyGroup>
+</Project>

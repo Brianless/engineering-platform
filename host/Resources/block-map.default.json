@@ -1,0 +1,23 @@
+{
+  "version": "1.0",
+  "kind": "block-map",
+  "note": "默认块名映射：只覆盖最常见的通用块（图框/指北针/标高/轴号/图例）。企业可复制到 %LOCALAPPDATA%\\EngineeringPlatform\\block-map.json 后覆盖（当前版本的覆盖入口是企业图层映射表，块表覆盖在 M1 开放）。",
+  "patterns": [
+    { "pattern": "*图框*", "meaning": "图框", "category": "frame", "confidencePct": 92 },
+    { "pattern": "TITLE*", "meaning": "图框", "category": "frame", "confidencePct": 90 },
+    { "pattern": "A0", "meaning": "图框（A0）", "category": "frame", "confidencePct": 90 },
+    { "pattern": "A1", "meaning": "图框（A1）", "category": "frame", "confidencePct": 90 },
+    { "pattern": "A2", "meaning": "图框（A2）", "category": "frame", "confidencePct": 90 },
+    { "pattern": "A3", "meaning": "图框（A3）", "category": "frame", "confidencePct": 90 },
+
+    { "pattern": "*指北*", "meaning": "指北针", "category": "frame", "confidencePct": 88 },
+    { "pattern": "NORTH*", "meaning": "指北针", "category": "frame", "confidencePct": 88 },
+    { "pattern": "*图例*", "meaning": "图例", "category": "frame", "confidencePct": 84 },
+    { "pattern": "LEGEND*", "meaning": "图例", "category": "frame", "confidencePct": 84 },
+
+    { "pattern": "*标高*", "meaning": "标高符号", "category": "annotation", "confidencePct": 88 },
+    { "pattern": "ELEV*", "meaning": "标高符号", "category": "annotation", "confidencePct": 88 },
+    { "pattern": "*轴号*", "meaning": "轴号", "category": "annotation", "confidencePct": 86 },
+    { "pattern": "AXIS*", "meaning": "轴号", "category": "annotation", "confidencePct": 86 }
+  ]
+}

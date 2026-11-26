@@ -1,0 +1,3266 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://engineering-platform.local/protocol/tools.schema.json",
+  "title": "Engineering Platform Tool Catalog (M0 read-only)",
+  "description": "工具目录唯一真相源。宿主与 MCP 各自持有本文件的副本，启动时校验 toolCatalogHash = sha256(本文件字节)[:16]。M0 仅开放 sys_ / read_ / task_ 三个只读域；写域工具不在此列表中，调用即 E2003。",
+  "version": "0.1.0",
+  "protocolVersion": "1.0",
+  "namingRule": {
+    "toolName": "snake_case，<domain>_<action>",
+    "descriptionStyle": "[做什么]一句话。[入参关键约束：单位/范围/上限]。[返回什么+摘要与引用约定+截断行为]。长度 ≤ 500 字符。",
+    "fieldNaming": "camelCase",
+    "unitRule": "长度用图纸单位并在同一响应给 units{insUnits,code,scaleToMeter}；角度单位为度（_deg）；时间间隔为毫秒（_ms）；时间戳为 UTC ISO-8601 毫秒精度（*Utc）。schema 中每个数值字段的 description 必须写明单位。"
+  },
+  "domains": {
+    "sys": {
+      "readWrite": "read",
+      "purpose": "状态、版本、健康检查、诊断包、实例发现"
+    },
+    "read": {
+      "readWrite": "read",
+      "purpose": "图纸语义读取、对象查询、预览图"
+    },
+    "task": {
+      "readWrite": "read+control",
+      "purpose": "任务查询、取消、结果不明对账"
+    },
+    "write": {
+      "readWrite": "write",
+      "purpose": "M1/v3.0 写通道（支持三步审批或 write.autoApprove 全自主静默执行）",
+      "m0": "disabled"
+    },
+    "export": {
+      "readWrite": "read",
+      "purpose": "空间数据无损导出（TIN 高程栅格 .npz / 图层 GeoJSON）"
+    },
+    "preview": {
+      "readWrite": "read",
+      "purpose": "非破坏性瞬态 3D 视口预览（TransientManager）"
+    },
+    "batch": {
+      "readWrite": "read+write",
+      "purpose": "侧数据库无界面跨图批处理（Side Database）"
+    },
+    "cad": {
+      "readWrite": "read+write",
+      "purpose": "AutoCAD 通用图元与图层、块、标注",
+      "m0": "disabled"
+    },
+    "civil": {
+      "readWrite": "read+write",
+      "purpose": "Civil 3D 路线/曲面/纵断面/廊道/管网",
+      "m0": "disabled+absent"
+    },
+    "calc": {
+      "readWrite": "read+file",
+      "purpose": "确定性计算（库容、土方、水力、稳定）",
+      "m0": "disabled"
+    },
+    "dyn": {
+      "readWrite": "write(restricted)",
+      "purpose": "API 查询、动态编译、副本执行",
+      "m0": "disabled"
+    },
+    "skill": {
+      "readWrite": "mixed",
+      "purpose": "技能搜索/调用/起草/发布",
+      "m0": "disabled"
+    },
+    "file": {
+      "readWrite": "controlled",
+      "purpose": "受控文件通道",
+      "m0": "disabled"
+    },
+    "rev": {
+      "readWrite": "read+write",
+      "purpose": "Revit 宿主工具",
+      "m0": "disabled"
+    },
+    "p3d": {
+      "readWrite": "read+write",
+      "purpose": "Plant 3D 宿主工具",
+      "m0": "disabled"
+    }
+  },
+  "$defs": {
+    "Basis": {
+      "type": "object",
+      "description": "识别依据（方案 15.3：每个识别结果都必须带依据，没有依据视为缺陷）。",
+      "required": [
+        "kind",
+        "ref"
+      ],
+      "properties": {
+        "kind": {
+          "type": "string",
+          "enum": [
+            "civil_native",
+            "layer_map",
+            "block_map",
+            "geometry_rule",
+            "text_rule",
+            "inference"
+          ]
+        },
+        "ref": {
+          "type": "string",
+          "maxLength": 200,
+          "examples": [
+            "civil3d:handle=1A2F",
+            "layer_map:道路中心线"
+          ]
+        },
+        "pattern": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "maxLength": 200
+        }
+      }
+    },
+    "ResultRef": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "tool",
+        "opId",
+        "fingerprint"
+      ],
+      "properties": {
+        "tool": {
+          "type": "string"
+        },
+        "opId": {
+          "type": "string"
+        },
+        "fingerprint": {
+          "type": "string",
+          "pattern": "^fp1:[0-9a-f]{32}$"
+        },
+        "storedAt": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "项目库引用，形如 projects/default.db#results/1841；未落库为 null"
+        },
+        "detailTool": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "下钻用的推荐工具名"
+        }
+      }
+    },
+    "Drilldown": {
+      "type": "array",
+      "maxItems": 5,
+      "description": "可直接执行的下钻建议。硬约定：truncated=true 时不得为空数组；没有 nextCursor 可翻页时至少给「按条件收窄」与「增大 limit」两条。",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "tool",
+          "params",
+          "why"
+        ],
+        "properties": {
+          "tool": {
+            "type": "string"
+          },
+          "params": {
+            "type": "object"
+          },
+          "why": {
+            "type": "string",
+            "maxLength": 160
+          }
+        }
+      }
+    },
+    "Units": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "insUnits",
+        "code",
+        "scaleToMeter"
+      ],
+      "properties": {
+        "insUnits": {
+          "type": "integer",
+          "description": "AutoCAD INSUNITS 原值：0=未指定,1=英寸,2=英尺,4=毫米,5=厘米,6=米"
+        },
+        "code": {
+          "type": "string",
+          "enum": [
+            "unitless",
+            "in",
+            "ft",
+            "mm",
+            "cm",
+            "m"
+          ]
+        },
+        "scaleToMeter": {
+          "type": "number",
+          "description": "图纸单位 × 本值 = 米。unitless 时为 null。"
+        }
+      }
+    },
+    "Extents": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "min",
+        "max"
+      ],
+      "properties": {
+        "min": {
+          "type": "array",
+          "items": {
+            "type": "number"
+          },
+          "minItems": 3,
+          "maxItems": 3
+        },
+        "max": {
+          "type": "array",
+          "items": {
+            "type": "number"
+          },
+          "minItems": 3,
+          "maxItems": 3
+        }
+      }
+    },
+    "Annotation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "readOnlyHint",
+        "destructiveHint",
+        "idempotentHint",
+        "openWorldHint"
+      ],
+      "properties": {
+        "readOnlyHint": {
+          "const": true
+        },
+        "destructiveHint": {
+          "const": false
+        },
+        "idempotentHint": {
+          "type": "boolean"
+        },
+        "openWorldHint": {
+          "const": false
+        }
+      }
+    },
+    "SummaryResult": {
+      "type": "object",
+      "required": [
+        "summary",
+        "resultRef"
+      ],
+      "properties": {
+        "summary": {
+          "type": "string",
+          "maxLength": 400,
+          "description": "≤400 字符自然语言摘要，直接面向用户与模型"
+        },
+        "resultRef": {
+          "$ref": "#/$defs/ResultRef"
+        },
+        "truncated": {
+          "type": "boolean"
+        },
+        "drilldown": {
+          "$ref": "#/$defs/Drilldown"
+        }
+      }
+    },
+    "Cursor": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "maxLength": 64,
+      "description": "不透明游标（M0 为 lastHandle 的 base64url），空表示从头"
+    }
+  },
+  "tools": [
+    {
+      "name": "sys_ping",
+      "title": "心跳",
+      "domain": "sys",
+      "readOnly": true,
+      "description": "探测宿主是否存活。无入参。返回 pong、宿主时间与实例标识。客户端每 5 秒调用一次，连续 3 次超时判定连接断开。",
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      },
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {}
+      },
+      "outputSchema": {
+        "type": "object",
+        "required": [
+          "pong",
+          "serverTimeUtc",
+          "hostInstanceId"
+        ],
+        "properties": {
+          "pong": {
+            "const": true
+          },
+          "serverTimeUtc": {
+            "type": "string"
+          },
+          "hostInstanceId": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    {
+      "name": "sys_status",
+      "title": "宿主运行状态",
+      "domain": "sys",
+      "readOnly": true,
+      "description": "返回宿主运行态：启动时间、近 60 秒请求数与错误数、当前队列长度、主线程泵送是否正常、语义缓存命中率。无入参。用于判断「慢」是链路的还是 CAD 的。",
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      },
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {}
+      },
+      "outputSchema": {
+        "type": "object",
+        "required": [
+          "summary",
+          "uptimeMs",
+          "requestsLast60s",
+          "queueLength",
+          "idlePumping",
+          "cacheHitRate"
+        ],
+        "properties": {
+          "summary": {
+            "type": "string"
+          },
+          "uptimeMs": {
+            "type": "integer"
+          },
+          "requestsLast60s": {
+            "type": "integer"
+          },
+          "errorsLast60s": {
+            "type": "integer"
+          },
+          "queueLength": {
+            "type": "integer"
+          },
+          "idlePumping": {
+            "type": "boolean",
+            "description": "最近 3 秒内 Application.Idle 是否触发过"
+          },
+          "cacheHitRate": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          },
+          "sessions": {
+            "type": "integer"
+          }
+        }
+      }
+    },
+    {
+      "name": "sys_version",
+      "title": "版本信息",
+      "domain": "sys",
+      "readOnly": true,
+      "description": "返回宿主程序集版本、构建时间、AutoCAD 产品与版本、.NET 运行时、协议版本。无入参。排查兼容性问题时优先调用。",
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      },
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {}
+      },
+      "outputSchema": {
+        "type": "object",
+        "required": [
+          "host",
+          "autocad",
+          "protocol",
+          "dotnet"
+        ]
+      }
+    },
+    {
+      "name": "sys_health",
+      "title": "健康检查",
+      "domain": "sys",
+      "readOnly": true,
+      "description": "逐项检查管道 ACL、实例发现文件、日志目录可写、缓存目录可写、Civil 3D 探测、图层映射表加载、项目库可达。无入参。返回 checks 数组，任一 ok=false 时摘要直接给修复建议。",
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      },
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {}
+      },
+      "outputSchema": {
+        "type": "object",
+        "required": [
+          "summary",
+          "checks"
+        ],
+        "properties": {
+          "summary": {
+            "type": "string"
+          },
+          "checks": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "id",
+                "ok"
+              ],
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "enum": [
+                    "pipeAcl",
+                    "discoveryFile",
+                    "logWritable",
+                    "cacheWritable",
+                    "civilProbe",
+                    "layerMapLoaded",
+                    "projectDb"
+                  ]
+                },
+                "ok": {
+                  "type": "boolean"
+                },
+                "detail": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "sys_capabilities",
+      "title": "能力与缺口",
+      "domain": "sys",
+      "readOnly": true,
+      "description": "返回当前宿主真正可用的能力域、已禁用域、Civil 3D 等缺口清单与本机工具摘要。无入参。回答「能不能做某件专业操作」之前必须先看这里，不要臆测。",
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      },
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {}
+      },
+      "outputSchema": {
+        "type": "object",
+        "required": [
+          "domains",
+          "writeEnabled",
+          "gaps"
+        ],
+        "properties": {
+          "domains": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "writeEnabled": {
+            "type": "boolean",
+            "description": "写通道是否开启（配置 write.enabled）。为 false 时 write_* 一律 E2003"
+          },
+          "disabledDomains": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "gaps": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
+          },
+          "tools": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "sys_list_instances",
+      "title": "列出宿主实例",
+      "domain": "sys",
+      "readOnly": true,
+      "description": "列出本机所有已注册的宿主实例（来自实例发现目录），含活性标记。无入参。多开 CAD 时用它确认要连的是哪一个。",
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      },
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {}
+      },
+      "outputSchema": {
+        "type": "object",
+        "required": [
+          "instances"
+        ],
+        "properties": {
+          "instances": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "hostInstanceId",
+                "app",
+                "alive"
+              ],
+              "properties": {
+                "hostInstanceId": {
+                  "type": "string"
+                },
+                "app": {
+                  "type": "string"
+                },
+                "pid": {
+                  "type": [
+                    "integer",
+                    "null"
+                  ]
+                },
+                "hostVersion": {
+                  "type": "string"
+                },
+                "startedAtUtc": {
+                  "type": "string"
+                },
+                "documentNameHash": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "alive": {
+                  "type": "boolean"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "read_overview",
+      "title": "图纸总览",
+      "domain": "read",
+      "readOnly": true,
+      "description": "读取当前图纸的语义总览：软件与版本、单位与坐标系、范围、图元/图层/块数量、专业分布、顶层异常、图纸指纹。无必填入参。这是读图的第一步，先调它再决定下钻方向；返回含 summary 与 resultRef，超预算时按 drilldown 下钻。",
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      },
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "refresh": {
+            "type": "boolean",
+            "default": false,
+            "description": "true 时绕过 5 秒语义缓存重新采集"
+          }
+        }
+      },
+      "outputSchema": {
+        "type": "object",
+        "required": [
+          "summary",
+          "resultRef",
+          "software",
+          "drawing",
+          "units",
+          "extents",
+          "counts",
+          "fingerprint"
+        ],
+        "properties": {
+          "summary": {
+            "type": "string",
+            "maxLength": 400
+          },
+          "resultRef": {
+            "$ref": "#/$defs/ResultRef"
+          },
+          "truncated": {
+            "type": "boolean"
+          },
+          "drilldown": {
+            "$ref": "#/$defs/Drilldown"
+          },
+          "software": {
+            "type": "object",
+            "required": [
+              "name",
+              "version"
+            ],
+            "properties": {
+              "name": {
+                "type": "string",
+                "examples": [
+                  "AutoCAD",
+                  "Civil 3D"
+                ]
+              },
+              "version": {
+                "type": "string",
+                "examples": [
+                  "24.1s"
+                ]
+              },
+              "civilApiAvailable": {
+                "type": "boolean"
+              }
+            }
+          },
+          "drawing": {
+            "type": "object",
+            "required": [
+              "nameHash",
+              "readOnly"
+            ],
+            "properties": {
+              "nameHash": {
+                "type": "string",
+                "description": "文件 basename 的 sha256 前 8 位 + 扩展名，不返回明文路径"
+              },
+              "modifiedUtc": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "readOnly": {
+                "type": "boolean"
+              }
+            }
+          },
+          "units": {
+            "$ref": "#/$defs/Units"
+          },
+          "coordinateSystem": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "项目坐标系声明；M0 只读 UCS/WCS 与 INSUNITS，多为 null"
+          },
+          "extents": {
+            "$ref": "#/$defs/Extents"
+          },
+          "counts": {
+            "type": "object",
+            "required": [
+              "entities",
+              "layers",
+              "blocks",
+              "proxyEntities"
+            ],
+            "properties": {
+              "entities": {
+                "type": "integer"
+              },
+              "layers": {
+                "type": "integer",
+                "description": "**有图元的图层数**，恒等于 read_layers.total。不是图层表记录数——图层表里可能有建了没用过的空图层。"
+              },
+              "layerTableRecords": {
+                "type": "integer",
+                "description": "图层表记录数（含未使用的空图层）。layers + emptyLayers = layerTableRecords。"
+              },
+              "emptyLayers": {
+                "type": "integer",
+                "description": "图层表中没有任何图元的图层数（layers 之外的部分）。"
+              },
+              "blocks": {
+                "type": "integer"
+              },
+              "blockReferences": {
+                "type": "integer"
+              },
+              "paperSpaces": {
+                "type": "integer"
+              },
+              "proxyEntities": {
+                "type": "integer",
+                "description": "无法原生识别的代理对象数；>0 时必有 W1001 与 anomalies"
+              },
+              "entityLimitReached": {
+                "type": "boolean"
+              }
+            }
+          },
+          "disciplines": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "name",
+                "entityCount",
+                "confidence"
+              ],
+              "properties": {
+                "name": {
+                  "type": "string",
+                  "examples": [
+                    "通用图元",
+                    "场地/地形",
+                    "排水"
+                  ]
+                },
+                "entityCount": {
+                  "type": "integer"
+                },
+                "confidence": {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 1
+                }
+              }
+            }
+          },
+          "topAnomalies": {
+            "type": "array",
+            "maxItems": 5,
+            "items": {
+              "type": "object",
+              "required": [
+                "code",
+                "severity",
+                "message"
+              ],
+              "properties": {
+                "code": {
+                  "type": "string"
+                },
+                "severity": {
+                  "enum": [
+                    "info",
+                    "warn",
+                    "error"
+                  ]
+                },
+                "message": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "civil3d": {
+            "type": "object",
+            "description": "Civil 3D 原生对象快照（第二轮新增）。detected=false 时调用方应读 gaps[] 与 anomalies 里的 civil_api_absent 线索，不要假设对象不存在。",
+            "required": [
+              "detected",
+              "counts",
+              "truncated"
+            ],
+            "properties": {
+              "detected": {
+                "type": "boolean",
+                "description": "是否取到 CivilDocument（= Civil 3D 宿主且文档可用）"
+              },
+              "hostProduct": {
+                "type": "string",
+                "enum": [
+                  "AutoCAD",
+                  "Civil3D"
+                ]
+              },
+              "hostRelease": {
+                "type": "string",
+                "examples": [
+                  "R24.3",
+                  "R23.0"
+                ]
+              },
+              "counts": {
+                "type": "object",
+                "required": [
+                  "surfaces",
+                  "alignments",
+                  "profiles",
+                  "pipeNetworks",
+                  "pointGroups",
+                  "total"
+                ],
+                "properties": {
+                  "surfaces": {
+                    "type": "integer"
+                  },
+                  "alignments": {
+                    "type": "integer"
+                  },
+                  "profiles": {
+                    "type": "integer"
+                  },
+                  "pipeNetworks": {
+                    "type": "integer"
+                  },
+                  "pointGroups": {
+                    "type": "integer"
+                  },
+                  "total": {
+                    "type": "integer"
+                  }
+                }
+              },
+              "surfaces": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "required": [
+                    "name",
+                    "handle",
+                    "confidence"
+                  ],
+                  "properties": {
+                    "kind": {
+                      "const": "surface"
+                    },
+                    "kindDisplay": {
+                      "type": "string",
+                      "examples": [
+                        "曲面"
+                      ]
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "handle": {
+                      "type": "string",
+                      "description": "十六进制大写句柄，可直接用于 read_describe"
+                    },
+                    "typeName": {
+                      "type": "string",
+                      "examples": [
+                        "TinSurface",
+                        "GridSurface"
+                      ]
+                    },
+                    "props": {
+                      "type": "object",
+                      "description": "只放取到的属性；取不到的键不出现（宁缺勿造假）",
+                      "properties": {
+                        "triangleCount": {
+                          "type": "integer"
+                        },
+                        "pointCount": {
+                          "type": "integer"
+                        },
+                        "minElevation": {
+                          "type": "number"
+                        },
+                        "maxElevation": {
+                          "type": "number"
+                        }
+                      }
+                    },
+                    "confidence": {
+                      "const": 1.0,
+                      "description": "原生对象最高可信（方案 15.3）"
+                    },
+                    "confidenceBand": {
+                      "const": "auto"
+                    },
+                    "basis": {
+                      "$ref": "#/$defs/Basis"
+                    }
+                  }
+                }
+              },
+              "alignments": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "required": [
+                    "name",
+                    "handle",
+                    "confidence"
+                  ],
+                  "properties": {
+                    "kind": {
+                      "const": "alignment"
+                    },
+                    "kindDisplay": {
+                      "type": "string",
+                      "examples": [
+                        "路线"
+                      ]
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "handle": {
+                      "type": "string"
+                    },
+                    "typeName": {
+                      "type": "string"
+                    },
+                    "props": {
+                      "type": "object",
+                      "properties": {
+                        "startStation": {
+                          "type": "number",
+                          "description": "起点桩号（图纸单位）"
+                        },
+                        "endStation": {
+                          "type": "number"
+                        },
+                        "length": {
+                          "type": "number"
+                        },
+                        "designSpeeds": {
+                          "type": "string"
+                        }
+                      }
+                    },
+                    "confidence": {
+                      "const": 1.0
+                    },
+                    "confidenceBand": {
+                      "const": "auto"
+                    },
+                    "basis": {
+                      "$ref": "#/$defs/Basis"
+                    }
+                  }
+                }
+              },
+              "profiles": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "required": [
+                    "name",
+                    "handle",
+                    "confidence"
+                  ],
+                  "properties": {
+                    "kind": {
+                      "const": "profile"
+                    },
+                    "kindDisplay": {
+                      "type": "string",
+                      "examples": [
+                        "纵断面"
+                      ]
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "handle": {
+                      "type": "string"
+                    },
+                    "typeName": {
+                      "type": "string"
+                    },
+                    "props": {
+                      "type": "object",
+                      "properties": {
+                        "startStation": {
+                          "type": "number"
+                        },
+                        "endStation": {
+                          "type": "number"
+                        },
+                        "alignment": {
+                          "type": "string",
+                          "description": "所属路线名；宿主版本不暴露该属性时不出现"
+                        }
+                      }
+                    },
+                    "confidence": {
+                      "const": 1.0
+                    },
+                    "confidenceBand": {
+                      "const": "auto"
+                    },
+                    "basis": {
+                      "$ref": "#/$defs/Basis"
+                    }
+                  }
+                }
+              },
+              "pipeNetworks": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "required": [
+                    "name",
+                    "handle",
+                    "confidence"
+                  ],
+                  "properties": {
+                    "kind": {
+                      "const": "pipeNetwork"
+                    },
+                    "kindDisplay": {
+                      "type": "string",
+                      "examples": [
+                        "管网"
+                      ]
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "handle": {
+                      "type": "string"
+                    },
+                    "typeName": {
+                      "type": "string"
+                    },
+                    "props": {
+                      "type": "object",
+                      "properties": {
+                        "pipeCount": {
+                          "type": "integer"
+                        },
+                        "structureCount": {
+                          "type": "integer"
+                        }
+                      }
+                    },
+                    "confidence": {
+                      "const": 1.0
+                    },
+                    "confidenceBand": {
+                      "const": "auto"
+                    },
+                    "basis": {
+                      "$ref": "#/$defs/Basis"
+                    }
+                  }
+                }
+              },
+              "pointGroups": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "required": [
+                    "name",
+                    "handle",
+                    "confidence"
+                  ],
+                  "properties": {
+                    "kind": {
+                      "const": "pointGroup"
+                    },
+                    "kindDisplay": {
+                      "type": "string",
+                      "examples": [
+                        "点编组"
+                      ]
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "handle": {
+                      "type": "string"
+                    },
+                    "typeName": {
+                      "type": "string"
+                    },
+                    "props": {
+                      "type": "object",
+                      "properties": {
+                        "pointCount": {
+                          "type": "integer"
+                        }
+                      }
+                    },
+                    "confidence": {
+                      "const": 1.0
+                    },
+                    "confidenceBand": {
+                      "const": "auto"
+                    },
+                    "basis": {
+                      "$ref": "#/$defs/Basis"
+                    }
+                  }
+                }
+              },
+              "attributeProbe": {
+                "type": "object",
+                "description": "属性可得性探针：键为 kind.property，值为该宿主版本是否取到。第 0 阶段可行性清单直接引用它。",
+                "additionalProperties": {
+                  "type": "boolean"
+                }
+              },
+              "objectCap": {
+                "type": "integer",
+                "description": "单类对象列举上限；counts 不受此限"
+              },
+              "truncated": {
+                "type": "boolean"
+              },
+              "elapsedMs": {
+                "type": "integer"
+              },
+              "note": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "maxLength": 300
+              }
+            }
+          },
+          "fingerprint": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    {
+      "name": "read_layers",
+      "title": "图层摘要",
+      "domain": "read",
+      "readOnly": true,
+      "description": "按图层返回对象类型与数量、识别含义、置信度与依据。可选按专业过滤、按图层名通配匹配。分页返回，单页上限 200 层。用于回答「这张图分几类专业内容、识别可信度如何」。",
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      },
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "disciplines": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 10
+          },
+          "namePattern": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 120,
+            "description": "通配符 * 与 ?，大小写不敏感，如 \"E-*沟*\"",
+            "examples": [
+              "E-*沟*"
+            ]
+          },
+          "minEntities": {
+            "type": "integer",
+            "minimum": 0,
+            "default": 0
+          },
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 200,
+            "default": 50
+          },
+          "cursor": {
+            "$ref": "#/$defs/Cursor"
+          }
+        }
+      },
+      "outputSchema": {
+        "type": "object",
+        "required": [
+          "summary",
+          "resultRef",
+          "layers",
+          "total"
+        ],
+        "properties": {
+          "summary": {
+            "type": "string",
+            "maxLength": 400
+          },
+          "resultRef": {
+            "$ref": "#/$defs/ResultRef"
+          },
+          "truncated": {
+            "type": "boolean"
+          },
+          "drilldown": {
+            "$ref": "#/$defs/Drilldown"
+          },
+          "layers": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "name",
+                "entityCount",
+                "types",
+                "confidence",
+                "confidenceBand"
+              ],
+              "properties": {
+                "name": {
+                  "type": "string"
+                },
+                "entityCount": {
+                  "type": "integer"
+                },
+                "types": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "integer"
+                  },
+                  "description": "DXF 名 → 数量"
+                },
+                "recognizedAs": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "description": "识别出的工程含义；null 表示未识别"
+                },
+                "confidence": {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 1
+                },
+                "confidenceBand": {
+                  "enum": [
+                    "auto",
+                    "confirm",
+                    "hint"
+                  ],
+                  "description": "≥0.9 auto；0.6–0.9 confirm；<0.6 hint（方案 15.3）"
+                },
+                "basis": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "required": [
+                      "kind",
+                      "ref"
+                    ],
+                    "properties": {
+                      "kind": {
+                        "enum": [
+                          "civil_native",
+                          "layer_map",
+                          "block_map",
+                          "geometry_rule",
+                          "text_rule",
+                          "inference"
+                        ]
+                      },
+                      "ref": {
+                        "type": "string",
+                        "examples": [
+                          "layer-map@1.0:#E-*沟*"
+                        ]
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "total": {
+            "type": "integer"
+          },
+          "nextCursor": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "name": "read_query",
+      "title": "对象查询",
+      "domain": "read",
+      "readOnly": true,
+      "description": "按图层、DXF 类型、范围、文字包含、属性等条件查询对象，分页返回轻量对象引用（句柄/类型/图层/范围/识别含义/置信度）。单页上限 100 条。只返回引用不返回详情，需要细节再用 read_describe。范围坐标为图纸单位。",
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      },
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "layer": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 120,
+            "description": "图层名通配，大小写不敏感"
+          },
+          "dxfName": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 40,
+            "examples": [
+              "LWPOLYLINE",
+              "TEXT",
+              "INSERT"
+            ]
+          },
+          "extent": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "items": {
+              "type": "number"
+            },
+            "minItems": 4,
+            "maxItems": 4,
+            "description": "[x0,y0,x1,y1]，图纸单位；命中判据为对象包围盒与之相交"
+          },
+          "textContains": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 80,
+            "description": "文字/属性值包含匹配；返回结果不回显全文（仅命中标记）"
+          },
+          "attrEquals": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "additionalProperties": {
+              "type": "string"
+            },
+            "description": "块属性名=值，如 {\"图号\":\"D-01\"}"
+          },
+          "meaning": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 60,
+            "description": "按识别含义过滤，如 \"边沟中线\""
+          },
+          "minConfidence": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1,
+            "default": 0
+          },
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100,
+            "default": 20
+          },
+          "cursor": {
+            "$ref": "#/$defs/Cursor"
+          }
+        }
+      },
+      "outputSchema": {
+        "type": "object",
+        "required": [
+          "summary",
+          "resultRef",
+          "items",
+          "total"
+        ],
+        "properties": {
+          "summary": {
+            "type": "string",
+            "maxLength": 400
+          },
+          "resultRef": {
+            "$ref": "#/$defs/ResultRef"
+          },
+          "truncated": {
+            "type": "boolean"
+          },
+          "drilldown": {
+            "$ref": "#/$defs/Drilldown"
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "handle",
+                "dxfName",
+                "layer",
+                "extents",
+                "confidence"
+              ],
+              "properties": {
+                "handle": {
+                  "type": "string",
+                  "pattern": "^[0-9A-F]{1,16}$",
+                  "description": "十六进制大写句柄，不带 0x"
+                },
+                "dxfName": {
+                  "type": "string"
+                },
+                "type": {
+                  "type": "string",
+                  "description": ".NET 类型名"
+                },
+                "layer": {
+                  "type": "string"
+                },
+                "extents": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/Extents"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "meaning": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "confidence": {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 1
+                },
+                "textHit": {
+                  "type": "boolean",
+                  "description": "textContains 是否命中；不返回原文"
+                }
+              }
+            }
+          },
+          "total": {
+            "type": "integer"
+          },
+          "nextCursor": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "name": "read_describe",
+      "title": "对象详情",
+      "domain": "read",
+      "readOnly": true,
+      "description": "按句柄返回单个对象的完整描述：类型、图层、几何摘要、关键属性、文字、识别含义与依据、关联关系、该对象上的异常。句柄必填且必须来自 read_query 的结果（不跨命令持有 ObjectId）。",
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      },
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "handle"
+        ],
+        "properties": {
+          "handle": {
+            "type": "string",
+            "pattern": "^[0-9A-Fa-f]{1,16}$",
+            "description": "十六进制句柄"
+          },
+          "fingerprint": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "可选：来自上一步的图纸指纹。不一致时仅告警 W1004"
+          }
+        }
+      },
+      "outputSchema": {
+        "type": "object",
+        "required": [
+          "summary",
+          "resultRef",
+          "object"
+        ],
+        "properties": {
+          "summary": {
+            "type": "string",
+            "maxLength": 400
+          },
+          "resultRef": {
+            "$ref": "#/$defs/ResultRef"
+          },
+          "object": {
+            "type": "object",
+            "required": [
+              "handle",
+              "dxfName",
+              "layer"
+            ],
+            "properties": {
+              "handle": {
+                "type": "string"
+              },
+              "dxfName": {
+                "type": "string"
+              },
+              "type": {
+                "type": "string"
+              },
+              "layer": {
+                "type": "string"
+              },
+              "linetype": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "colorIndex": {
+                "type": [
+                  "integer",
+                  "null"
+                ]
+              },
+              "visible": {
+                "type": "boolean"
+              },
+              "extents": {
+                "anyOf": [
+                  {
+                    "$ref": "#/$defs/Extents"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "geometry": {
+                "type": "object",
+                "description": "按类型不同：line{start,end,length}、arc{center,radius,startAngle_deg,endAngle_deg}、polyline{vertexCount,closed,length}、point{position}、text{height,rotation_deg}"
+              },
+              "props": {
+                "type": "object",
+                "additionalProperties": {
+                  "type": [
+                    "string",
+                    "number",
+                    "boolean",
+                    "null"
+                  ]
+                }
+              },
+              "texts": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "maxLength": 80
+                },
+                "maxItems": 5
+              }
+            }
+          },
+          "meaning": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "confidence": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          },
+          "confidenceBand": {
+            "enum": [
+              "auto",
+              "confirm",
+              "hint"
+            ]
+          },
+          "basis": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
+          },
+          "relations": {
+            "type": "array",
+            "maxItems": 20,
+            "items": {
+              "type": "object",
+              "required": [
+                "kind",
+                "targetHandle"
+              ],
+              "properties": {
+                "kind": {
+                  "enum": [
+                    "belongs_to",
+                    "depends_on",
+                    "conflicts_with",
+                    "references"
+                  ]
+                },
+                "targetHandle": {
+                  "type": "string"
+                },
+                "basis": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                }
+              }
+            }
+          },
+          "anomalies": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "read_anomalies",
+      "title": "异常清单",
+      "domain": "read",
+      "readOnly": true,
+      "description": "返回图纸异常清单：重复点、零长度/退化几何、极值坐标、单位缺失、代理对象、空属性、超长文字。可按类型、图层、严重度过滤，单页上限 100 条。这些是「读到了但不敢当真」的地方，必须向用户如实报告而非自行修正。",
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      },
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "types": {
+            "type": "array",
+            "maxItems": 8,
+            "items": {
+              "enum": [
+                "duplicate_point",
+                "zero_length",
+                "extreme_coord",
+                "degenerate_extents",
+                "proxy_object",
+                "missing_unit",
+                "empty_attr",
+                "extremely_long_text"
+              ]
+            }
+          },
+          "layer": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 120
+          },
+          "severity": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "info",
+              "warn",
+              "error",
+              null
+            ]
+          },
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100,
+            "default": 30
+          },
+          "cursor": {
+            "$ref": "#/$defs/Cursor"
+          }
+        }
+      },
+      "outputSchema": {
+        "type": "object",
+        "required": [
+          "summary",
+          "resultRef",
+          "items",
+          "counts"
+        ],
+        "properties": {
+          "summary": {
+            "type": "string",
+            "maxLength": 400
+          },
+          "resultRef": {
+            "$ref": "#/$defs/ResultRef"
+          },
+          "truncated": {
+            "type": "boolean"
+          },
+          "drilldown": {
+            "$ref": "#/$defs/Drilldown"
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "code",
+                "severity",
+                "message"
+              ],
+              "properties": {
+                "code": {
+                  "type": "string"
+                },
+                "severity": {
+                  "enum": [
+                    "info",
+                    "warn",
+                    "error"
+                  ]
+                },
+                "handle": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "layer": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "message": {
+                  "type": "string",
+                  "maxLength": 200
+                },
+                "evidence": {
+                  "type": "object",
+                  "description": "数值证据，如 {x:1000.0,y:2000.0} 或 {length:0.0}"
+                }
+              }
+            }
+          },
+          "counts": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "integer"
+            }
+          },
+          "nextCursor": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "name": "read_preview",
+      "title": "预览图",
+      "domain": "read",
+      "readOnly": true,
+      "description": "按范围生成当前图纸的 PNG 预览图并直接返回图片内容。可选范围与尺寸，宽 200–2400、高 200–1600，默认 1200×800。M0 为结构示意图（由语义模型几何绘制），非出图成果，不可用于施工或校审；真实 PLOT 出图属后续里程碑。超 1 MB 时自动降尺寸重绘。",
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      },
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "extent": {
+            "anyOf": [
+              {
+                "const": "all"
+              },
+              {
+                "type": "array",
+                "items": {
+                  "type": "number"
+                },
+                "minItems": 4,
+                "maxItems": 4
+              }
+            ],
+            "default": "all",
+            "description": "\"all\" 或 [x0,y0,x1,y1]（图纸单位）"
+          },
+          "width": {
+            "type": "integer",
+            "minimum": 200,
+            "maximum": 2400,
+            "default": 1200
+          },
+          "height": {
+            "type": "integer",
+            "minimum": 200,
+            "maximum": 1600,
+            "default": 800
+          },
+          "highlightHandles": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "pattern": "^[0-9A-Fa-f]{1,16}$"
+            },
+            "maxItems": 50,
+            "description": "高亮指定对象，用于确认 read_describe 的对象是否就是要看的那个"
+          },
+          "format": {
+            "const": "png"
+          }
+        }
+      },
+      "outputSchema": {
+        "type": "object",
+        "required": [
+          "summary",
+          "resultRef",
+          "previewPath",
+          "width",
+          "height",
+          "bytes",
+          "note"
+        ],
+        "properties": {
+          "summary": {
+            "type": "string",
+            "maxLength": 400
+          },
+          "resultRef": {
+            "$ref": "#/$defs/ResultRef"
+          },
+          "previewPath": {
+            "type": "string",
+            "description": "白名单目录内的绝对路径；MCP 侧必须再过一次白名单校验才允许读取"
+          },
+          "width": {
+            "type": "integer"
+          },
+          "height": {
+            "type": "integer"
+          },
+          "bytes": {
+            "type": "integer"
+          },
+          "extents": {
+            "$ref": "#/$defs/Extents"
+          },
+          "legend": {
+            "type": "array",
+            "maxItems": 12,
+            "items": {
+              "type": "object",
+              "required": [
+                "color",
+                "label",
+                "count"
+              ],
+              "properties": {
+                "color": {
+                  "type": "string",
+                  "pattern": "^#[0-9a-f]{6}$"
+                },
+                "label": {
+                  "type": "string",
+                  "maxLength": 40
+                },
+                "count": {
+                  "type": "integer"
+                }
+              }
+            }
+          },
+          "note": {
+            "const": "结构示意图，非出图成果"
+          },
+          "oversize": {
+            "type": "boolean",
+            "description": "true 表示超过 1 MB，仅返回路径不内联图片"
+          }
+        }
+      },
+      "mcpContentHint": "content = [text 摘要, text resultRef, image(base64 png, mimeType image/png)]"
+    },
+    {
+      "name": "task_status",
+      "title": "任务状态",
+      "domain": "task",
+      "readOnly": true,
+      "description": "按 opId 查询任务状态与耗时。无副作用。用于确认某个请求是否真的执行过、耗时多少、失败在哪个错误码。",
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      },
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "opId"
+        ],
+        "properties": {
+          "opId": {
+            "type": "string",
+            "maxLength": 64
+          }
+        }
+      },
+      "outputSchema": {
+        "type": "object",
+        "required": [
+          "opId",
+          "status"
+        ],
+        "properties": {
+          "opId": {
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "validated",
+              "queued",
+              "running",
+              "committed",
+              "saved",
+              "verified",
+              "failed",
+              "cancelled",
+              "unknown",
+              "notFound"
+            ]
+          },
+          "tool": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "startedAtUtc": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "elapsedMs": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "errorCode": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "name": "task_list",
+      "title": "最近任务",
+      "domain": "task",
+      "readOnly": true,
+      "description": "列出最近任务（宿主内存环形缓冲，最多 200 条）。可按时间过滤，默认 20 条。用于在 WorkBuddy 与降级面板之间核对同一批任务。",
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      },
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 200,
+            "default": 20
+          },
+          "sinceUtc": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      },
+      "outputSchema": {
+        "type": "object",
+        "required": [
+          "tasks"
+        ],
+        "properties": {
+          "tasks": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "opId",
+                "tool",
+                "status"
+              ],
+              "properties": {
+                "opId": {
+                  "type": "string"
+                },
+                "tool": {
+                  "type": "string"
+                },
+                "status": {
+                  "type": "string"
+                },
+                "startedAtUtc": {
+                  "type": "string"
+                },
+                "elapsedMs": {
+                  "type": "integer"
+                },
+                "errorCode": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "task_cancel",
+      "title": "取消任务",
+      "domain": "task",
+      "readOnly": false,
+      "controlOnly": true,
+      "description": "请求取消一个正在执行的任务。只置取消标志，由 handler 在对象批边界安全停止；不会回滚任何东西（M0 无写入，故无副作用）。返回 accepted 表示是否已受理。",
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      },
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "opId"
+        ],
+        "properties": {
+          "opId": {
+            "type": "string",
+            "maxLength": 64
+          }
+        }
+      },
+      "outputSchema": {
+        "type": "object",
+        "required": [
+          "accepted"
+        ],
+        "properties": {
+          "accepted": {
+            "type": "boolean"
+          },
+          "status": {
+            "type": "string"
+          },
+          "reason": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "name": "task_reconcile",
+      "title": "结果不明对账",
+      "domain": "task",
+      "readOnly": true,
+      "description": "对处于结果不明（超时/断线）的任务做一次对账：查宿主任务记录，判定 verified/failed/unknown 并落库。只读幂等，不触发任何重放。unknown 时提示调用方「可安全重试，但必须用新 opId」。",
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      },
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "opId"
+        ],
+        "properties": {
+          "opId": {
+            "type": "string",
+            "maxLength": 64
+          }
+        }
+      },
+      "outputSchema": {
+        "type": "object",
+        "required": [
+          "opId",
+          "decision",
+          "checkedAtUtc"
+        ],
+        "properties": {
+          "opId": {
+            "type": "string"
+          },
+          "decision": {
+            "enum": [
+              "verified",
+              "failed",
+              "unknown"
+            ]
+          },
+          "evidence": {
+            "type": "object",
+            "description": "如 {reason:\"host_restarted\"} 或 {elapsedMs:183}"
+          },
+          "checkedAtUtc": {
+            "type": "string"
+          },
+          "advice": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 200
+          }
+        }
+      }
+    },
+    {
+      "name": "read_civil_list",
+      "title": "Civil 对象枚举",
+      "domain": "read",
+      "readOnly": true,
+      "description": "按类型与名称枚举 Civil 3D 对象并返回句柄。type 必填：any（不限定，五类聚合）、alignment（路线）、profile（纵断面）、surface（曲面）、pipeNetwork（管网）、pointGroup（点编组）。句柄仅在本次调用有效，不跨命令持有 ObjectId；结果带 counts 与 truncated。limit 取 1..500，默认 100；超过 limit 时返回 nextCursor，用 cursor 取下一页。未支持的类型一律回 E1001（不是空集），完整说明见 type 字段。",
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      },
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "any",
+              "alignment",
+              "profile",
+              "surface",
+              "pipeNetwork",
+              "pointGroup"
+            ],
+            "default": "any",
+            "description": "Civil 对象类型；不传等价于 any（不限定，五类聚合）。本版本仅支持：any、alignment、profile、surface、pipeNetwork、pointGroup。其它类型（廊道、采样线组等）尚未开放——请用 read_overview 的 civil3d 段判断图纸里是否存在，不要用本工具的空结果推断「不存在」。越界（含空串）一律 E1001（field=params.type，detail 形如 not in enum: <值>），不会静默返回空集，也不会返回全部对象"
+          },
+          "nameContains": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 120,
+            "description": "可选：按名称子串过滤，大小写不敏感"
+          },
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 500,
+            "default": 100,
+            "description": "最多返回的对象数量，取值 1..500，默认 100"
+          },
+          "cursor": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 64,
+            "description": "上一页返回的 nextCursor；不传表示第一页"
+          }
+        }
+      },
+      "outputSchema": {
+        "type": "object",
+        "required": [
+          "counts",
+          "items"
+        ],
+        "properties": {
+          "counts": {
+            "type": "object",
+            "required": [
+              "total",
+              "returned"
+            ],
+            "properties": {
+              "total": {
+                "type": "integer",
+                "description": "符合条件的对象总数（不受 limit 影响）"
+              },
+              "returned": {
+                "type": "integer",
+                "description": "本页实际返回数量"
+              }
+            }
+          },
+          "items": {
+            "type": "array",
+            "maxItems": 500,
+            "items": {
+              "type": "object",
+              "required": [
+                "handle",
+                "type"
+              ],
+              "properties": {
+                "handle": {
+                  "type": "string",
+                  "pattern": "^[0-9A-Fa-f]{1,16}$",
+                  "description": "十六进制句柄，仅本次调用有效"
+                },
+                "name": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "maxLength": 200
+                },
+                "type": {
+                  "type": "string"
+                },
+                "basis": {
+                  "$ref": "#/$defs/Basis"
+                }
+              }
+            }
+          },
+          "truncated": {
+            "type": "boolean",
+            "description": "true 表示还有下一页"
+          },
+          "nextCursor": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 64
+          },
+          "units": {
+            "$ref": "#/$defs/Units"
+          }
+        }
+      }
+    },
+    {
+      "name": "read_civil_object",
+      "title": "Civil 对象属性",
+      "domain": "read",
+      "readOnly": true,
+      "description": "按句柄返回单个 Civil 3D 对象的属性表。handle 必须来自 read_civil_list（不跨命令持有 ObjectId）。每个结果强制带 confidence（0..1）与 basis（识别依据），没有依据视为缺陷。properties 取 0..40 个属性名，不传表示按类型给默认属性集；长度类属性在同一响应给 units。",
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      },
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "handle"
+        ],
+        "properties": {
+          "handle": {
+            "type": "string",
+            "pattern": "^[0-9A-Fa-f]{1,16}$",
+            "description": "十六进制句柄，必须来自 read_civil_list 的结果"
+          },
+          "properties": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "maxItems": 40,
+            "items": {
+              "type": "string",
+              "maxLength": 64
+            },
+            "description": "可选：只取指定属性名（最多 40 个）；不传表示按对象类型的默认属性集"
+          },
+          "fingerprint": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "可选：来自上一步的图纸指纹。不一致时仅告警 W1004"
+          }
+        }
+      },
+      "outputSchema": {
+        "type": "object",
+        "required": [
+          "summary",
+          "resultRef",
+          "object"
+        ],
+        "properties": {
+          "summary": {
+            "type": "string",
+            "maxLength": 400
+          },
+          "resultRef": {
+            "$ref": "#/$defs/ResultRef"
+          },
+          "object": {
+            "type": "object",
+            "required": [
+              "handle",
+              "type",
+              "confidence",
+              "basis"
+            ],
+            "properties": {
+              "handle": {
+                "type": "string"
+              },
+              "type": {
+                "type": "string"
+              },
+              "name": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "maxLength": 200
+              },
+              "confidence": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1
+              },
+              "basis": {
+                "$ref": "#/$defs/Basis"
+              },
+              "attributes": {
+                "type": "array",
+                "maxItems": 200,
+                "items": {
+                  "type": "object",
+                  "required": [
+                    "name",
+                    "value"
+                  ],
+                  "properties": {
+                    "name": {
+                      "type": "string",
+                      "maxLength": 64
+                    },
+                    "value": {
+                      "type": [
+                        "string",
+                        "number",
+                        "boolean",
+                        "null"
+                      ]
+                    },
+                    "unit": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "maxLength": 16,
+                      "description": "长度单位见响应级 units"
+                    }
+                  }
+                }
+              },
+              "units": {
+                "$ref": "#/$defs/Units"
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "write_preview",
+      "title": "写入预演（不落盘）",
+      "domain": "write",
+      "readOnly": true,
+      "description": "计算一次写入的摘要与参数指纹，不做任何修改。返回将要新增的点位数、目标图层、是否需要新建图层，以及 paramsDigest 与 targetFingerprint。写通道关闭（write.enabled=false）时恒返回 E2003。",
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      },
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "insert_points",
+              "command",
+              "surface_breakline"
+            ],
+            "default": "insert_points"
+          },
+          "points": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 5000,
+            "description": "点位表。e/n 必填，z 缺省为 0。坐标即图纸当前单位，宿主不做任何坐标换算。",
+            "items": {
+              "type": "object",
+              "required": [
+                "e",
+                "n"
+              ],
+              "properties": {
+                "id": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "maxLength": 64
+                },
+                "e": {
+                  "type": "number"
+                },
+                "n": {
+                  "type": "number"
+                },
+                "z": {
+                  "type": [
+                    "number",
+                    "null"
+                  ]
+                },
+                "code": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "maxLength": 32
+                }
+              }
+            }
+          },
+          "layer": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 255,
+            "description": "目标图层，缺省 EP-STAKEOUT；不存在则执行时新建"
+          },
+          "block": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 255,
+            "description": "预留：块名。本期不实现，传非空会告警"
+          },
+          "command": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 500,
+            "description": "kind=command 时要执行的单行命令"
+          },
+          "surface": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 255
+          }
+        }
+      }
+    },
+    {
+      "name": "write_approve",
+      "title": "写入审批（需人在 CAD 点确认）",
+      "domain": "write",
+      "readOnly": false,
+      "description": "为一次已预演的写入签发一次性审批令牌。必须带 userConfirmation=true（表示已在对话里向用户汇报摘要并得到明确「执行」），随后宿主在 CAD 中弹模态确认框，只有人点「是」才签发。令牌默认 120 秒有效、单次可用，绑定 paramsDigest + targetFingerprint + 文档身份。",
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": false
+      },
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "paramsDigest",
+          "targetFingerprint",
+          "userConfirmation"
+        ],
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "insert_points",
+              "command",
+              "surface_breakline"
+            ],
+            "default": "insert_points"
+          },
+          "points": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 5000,
+            "items": {
+              "type": "object",
+              "required": [
+                "e",
+                "n"
+              ],
+              "properties": {
+                "id": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "maxLength": 64
+                },
+                "e": {
+                  "type": "number"
+                },
+                "n": {
+                  "type": "number"
+                },
+                "z": {
+                  "type": [
+                    "number",
+                    "null"
+                  ]
+                },
+                "code": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "maxLength": 32
+                }
+              }
+            }
+          },
+          "layer": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 255
+          },
+          "block": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 255
+          },
+          "paramsDigest": {
+            "type": "string",
+            "maxLength": 80,
+            "description": "write_preview 返回的摘要，必须与本次参数重算结果一致"
+          },
+          "targetFingerprint": {
+            "type": "string",
+            "maxLength": 40,
+            "description": "write_preview 返回的图纸指纹"
+          },
+          "userConfirmation": {
+            "type": "boolean",
+            "const": true,
+            "description": "对话里已获用户明确「执行」；缺省或 false 直接 E1001 chat_confirmation_required"
+          },
+          "command": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 500
+          },
+          "surface": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 255
+          }
+        }
+      }
+    },
+    {
+      "name": "write_insert_points",
+      "title": "按坐标放点（测设）",
+      "domain": "write",
+      "readOnly": false,
+      "description": "按坐标表在模型空间插入点（POINT），图层不存在则新建。必须携带 write_approve 签发的 approvalToken 且参数与批准时完全一致，任一变化令牌失效（E1002）。永不保存文件，返回新增句柄清单，可用 U 撤销。单次上限 5000 点。",
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": false
+      },
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "points",
+          "paramsDigest",
+          "approvalToken"
+        ],
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "insert_points",
+              "command",
+              "surface_breakline"
+            ],
+            "default": "insert_points"
+          },
+          "points": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 5000,
+            "items": {
+              "type": "object",
+              "required": [
+                "e",
+                "n"
+              ],
+              "properties": {
+                "id": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "maxLength": 64
+                },
+                "e": {
+                  "type": "number"
+                },
+                "n": {
+                  "type": "number"
+                },
+                "z": {
+                  "type": [
+                    "number",
+                    "null"
+                  ]
+                },
+                "code": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "maxLength": 32
+                }
+              }
+            }
+          },
+          "layer": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 255
+          },
+          "block": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 255
+          },
+          "paramsDigest": {
+            "type": "string",
+            "maxLength": 80
+          },
+          "approvalToken": {
+            "type": "string",
+            "maxLength": 900,
+            "description": "write_approve 签发的一次性令牌"
+          },
+          "command": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 500
+          },
+          "surface": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 255
+          }
+        }
+      }
+    },
+    {
+      "name": "write_command",
+      "title": "执行一条 CAD 命令（需审批）",
+      "domain": "write",
+      "readOnly": false,
+      "description": "在当前图纸的命令上下文里执行一条非交互命令（例如 (setvar \"PDMODE\" 35) 或 _.REGEN）。必须携带 write_approve 签发的 approvalToken 且命令原文与批准时完全一致。硬拒保存/关闭/打印/发布类命令，永不落盘。执行是排队的：返回后请用 read_* 复核效果。",
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": false
+      },
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "command",
+          "paramsDigest",
+          "approvalToken"
+        ],
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "command"
+            ],
+            "default": "command"
+          },
+          "command": {
+            "type": "string",
+            "maxLength": 500
+          },
+          "paramsDigest": {
+            "type": "string",
+            "maxLength": 80
+          },
+          "approvalToken": {
+            "type": "string",
+            "maxLength": 900
+          },
+          "dryRun": {
+            "type": "boolean"
+          }
+        }
+      }
+    },
+    {
+      "name": "read_civil_surfaces",
+      "title": "列举 Civil 3D 曲面",
+      "domain": "read",
+      "readOnly": true,
+      "description": "列举图纸中的 Civil 3D 曲面，返回名称/类型等标量属性。执行在基座（new-acad 的 listSurfaces），本工具只做归一化与摘要；基座未加载时返回 E3002 并说明加载方式。",
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      },
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 500,
+            "default": 100
+          }
+        }
+      }
+    },
+    {
+      "name": "read_civil_alignments",
+      "title": "列举 Civil 3D 路线",
+      "domain": "read",
+      "readOnly": true,
+      "description": "列举图纸中的 Civil 3D 路线（对齐/Alignment），返回名称/类型等标量属性。执行在基座（new-acad 的 listAlignments），本工具只做归一化与摘要；基座未加载时返回 E3002 并说明加载方式。",
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      },
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 500,
+            "default": 100
+          }
+        }
+      }
+    },
+    {
+      "name": "write_surface_breakline",
+      "title": "向曲面添加断裂线（需审批）",
+      "domain": "write",
+      "readOnly": false,
+      "description": "向指定 Civil 3D 曲面添加一条断裂线。入参用工程坐标 e/n/z，内部换算成基座的 x/y/z 并转调 addSurfaceBreakline。必须携带 write_approve 签发的 approvalToken；执行在后台线程（基座需主线程，同步等会死锁），返回 queued，效果用 read_civil_surfaces 复核；永不保存文件。",
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": false
+      },
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "surface",
+          "points",
+          "paramsDigest",
+          "approvalToken"
+        ],
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "surface_breakline"
+            ],
+            "default": "surface_breakline"
+          },
+          "surface": {
+            "type": "string",
+            "maxLength": 255
+          },
+          "points": {
+            "type": "array",
+            "minItems": 2,
+            "maxItems": 5000,
+            "items": {
+              "type": "object",
+              "required": [
+                "e",
+                "n"
+              ],
+              "properties": {
+                "e": {
+                  "type": "number"
+                },
+                "n": {
+                  "type": "number"
+                },
+                "z": {
+                  "type": [
+                    "number",
+                    "null"
+                  ]
+                }
+              }
+            }
+          },
+          "paramsDigest": {
+            "type": "string",
+            "maxLength": 80
+          },
+          "approvalToken": {
+            "type": "string",
+            "maxLength": 900
+          }
+        }
+      }
+    },
+    {
+      "name": "export_surface_grid",
+      "title": "无损导出曲面高程栅格",
+      "domain": "export",
+      "readOnly": true,
+      "description": "将 Civil 3D TinSurface 真实大地坐标高程格网无损导出为 NumPy .npz 或 .json 文件至 %TEMP%/ep_workspace/，供外置选线引擎 route_solver 直接加载。",
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      },
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "surface": { "type": "string", "maxLength": 255, "description": "曲面名称或十六进制句柄；省略时默认导出首个曲面" },
+          "resolution": { "type": "number", "minimum": 0.1, "maximum": 500.0, "default": 5.0, "description": "格网采样间距（米）" },
+          "maxGridDim": { "type": "integer", "minimum": 10, "maximum": 2000, "default": 400, "description": "单轴最大像元数" },
+          "format": { "type": "string", "enum": ["npz", "json"], "default": "npz" },
+          "outPath": { "type": "string", "maxLength": 500, "description": "输出文件路径；默认 %TEMP%/ep_workspace/terrain.npz" },
+          "extent": { "type": "array", "items": { "type": "number" }, "minItems": 4, "maxItems": 4, "description": "可选裁剪范围 [minX,minY,maxX,maxY]（米）" }
+        }
+      }
+    },
+    {
+      "name": "export_layer_geojson",
+      "title": "无损导出图层 GeoJSON",
+      "domain": "export",
+      "readOnly": true,
+      "description": "将指定图层的多段线/线/圆/弧/块参照/点/填充按真实大地坐标无损导出为 RFC 7946 GeoJSON 至 %TEMP%/ep_workspace/constraints.geojson，供外置选线引擎构建障碍物与拆迁代价场。",
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      },
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "layers": { "type": "array", "maxItems": 100, "items": { "type": "string" }, "description": "图层通配符列表；省略时导出全部图层" },
+          "layerCategoryMap": { "type": "object", "additionalProperties": { "type": "string" }, "description": "图层通配符到约束类别（forbidden/building/water/farmland/existing_road/control_point）的映射" },
+          "limit": { "type": "integer", "minimum": 1, "maximum": 100000, "default": 20000 },
+          "outPath": { "type": "string", "maxLength": 500 }
+        }
+      }
+    },
+    {
+      "name": "read_active_selection",
+      "title": "实时选区感知",
+      "domain": "read",
+      "readOnly": true,
+      "description": "读取当前 CAD 视口中工程师鼠标框选的实体集合（句柄、DXF 类型、图层、真实坐标包围盒与 Civil 对象名）。",
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      },
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "limit": { "type": "integer", "minimum": 1, "maximum": 2000, "default": 200 }
+        }
+      }
+    },
+    {
+      "name": "read_viewport_snapshot",
+      "title": "低延迟视口截图",
+      "domain": "read",
+      "readOnly": true,
+      "description": "通过 Document.CapturePreviewImage 截取当前 2D/3D 视口 PNG 截图（无头模式自动降级语义渲染），便于 AI 肉眼核验建模效果。",
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      },
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "width": { "type": "integer", "minimum": 200, "maximum": 2560, "default": 1280 },
+          "height": { "type": "integer", "minimum": 200, "maximum": 1600, "default": 720 },
+          "outPath": { "type": "string", "maxLength": 500 },
+          "includeBase64": { "type": "boolean", "default": false }
+        }
+      }
+    },
+    {
+      "name": "read_object_xdata",
+      "title": "读取对象 XData 与 XRecord",
+      "domain": "read",
+      "readOnly": true,
+      "description": "按句柄读取实体挂载的 XData（按 RegApp 分组）与 ExtensionDictionary 中的 XRecord 元数据。",
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      },
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["handle"],
+        "properties": {
+          "handle": { "type": "string", "maxLength": 16, "pattern": "^[0-9A-Fa-f]{1,16}$" }
+        }
+      }
+    },
+    {
+      "name": "write_object_xdata",
+      "title": "写入对象 XData 与 XRecord",
+      "domain": "write",
+      "readOnly": false,
+      "description": "按句柄向实体写入 XData（自动注册 RegApp）或 ExtensionDictionary XRecord 键值对。事务提交，支持单步撤销。",
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": false
+      },
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["handle", "entries"],
+        "properties": {
+          "handle": { "type": "string", "maxLength": 16, "pattern": "^[0-9A-Fa-f]{1,16}$" },
+          "regApp": { "type": "string", "maxLength": 120, "default": "EP_META" },
+          "xrecordKey": { "type": "string", "maxLength": 120 },
+          "entries": { "type": "object" },
+          "paramsDigest": { "type": "string", "maxLength": 80 },
+          "approvalToken": { "type": "string", "maxLength": 900 }
+        }
+      }
+    },
+    {
+      "name": "write_undo",
+      "title": "精准事务撤销",
+      "domain": "write",
+      "readOnly": false,
+      "description": "执行原子回滚（_.UNDO <steps>），支持 AI 试错后精准撤回最近 N 步图纸修改。",
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": false
+      },
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "steps": { "type": "integer", "minimum": 1, "maximum": 50, "default": 1 },
+          "paramsDigest": { "type": "string", "maxLength": 80 },
+          "approvalToken": { "type": "string", "maxLength": 900 }
+        }
+      }
+    },
+    {
+      "name": "write_alignment_plan",
+      "title": "平纵选线方案原生落盘",
+      "domain": "write",
+      "readOnly": false,
+      "description": "读取 route_solver 输出的 plan_N.json 或内联平纵参数，在 Civil 3D 中原生生成 Alignment、曲面纵断面与设计拉坡纵断面（纯 AutoCAD 自动降级 3D Polyline）。",
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": false
+      },
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "planPath": { "type": "string", "maxLength": 500 },
+          "name": { "type": "string", "maxLength": 200 },
+          "layer": { "type": "string", "maxLength": 255, "default": "EP-ALIGNMENT" },
+          "surfaceName": { "type": "string", "maxLength": 255 },
+          "eraseSourcePolyline": { "type": "boolean", "default": false },
+          "points": { "type": "array" },
+          "sampledCenterline": { "type": "array" },
+          "alignment": { "type": "object" },
+          "profile": { "type": "object" },
+          "pvis": { "type": "array" },
+          "paramsDigest": { "type": "string", "maxLength": 80 },
+          "approvalToken": { "type": "string", "maxLength": 900 }
+        }
+      }
+    },
+    {
+      "name": "write_eval_csharp",
+      "title": "Roslyn C# 内存编译执行",
+      "domain": "write",
+      "readOnly": false,
+      "description": "在独立 AssemblyLoadContext 中内存编译并执行任意 ObjectARX / Civil 3D C# 代码（注入 doc/db/tr/ed），支持 accoreconsole 影子进程试跑防崩溃。",
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": false
+      },
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["code"],
+        "properties": {
+          "code": { "type": "string", "maxLength": 65536 },
+          "args": { "type": "object" },
+          "usings": { "type": "array", "maxItems": 30, "items": { "type": "string" } },
+          "commit": { "type": "boolean", "default": true },
+          "shadowDryRun": { "type": "boolean", "default": false },
+          "paramsDigest": { "type": "string", "maxLength": 80 },
+          "approvalToken": { "type": "string", "maxLength": 900 }
+        }
+      }
+    },
+    {
+      "name": "write_entities",
+      "title": "原生批量创建实体（线/多段线/矩形/圆/圆弧/椭圆/文字/点）",
+      "domain": "write",
+      "readOnly": false,
+      "description": "在单个事务内按结构化 JSON 批量创建原生 CAD 实体（line/polyline/rectangle/circle/arc/ellipse/text/mtext/point），自动建图层与设颜色，支持插件/COM/离线三驱动，同步返回精确创建数、句柄、包围盒与失败明细（零 LISP entmake 静默丢弃），支持 write_undo 撤销。",
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": false
+      },
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["entities"],
+        "properties": {
+          "entities": { "type": "array", "minItems": 1, "maxItems": 5000, "items": { "type": "object" } },
+          "layer": { "type": "string", "maxLength": 255, "default": "0" },
+          "strict": { "type": "boolean", "default": false },
+          "zoomExtents": { "type": "boolean", "default": false },
+          "paramsDigest": { "type": "string", "maxLength": 80 },
+          "approvalToken": { "type": "string", "maxLength": 900 }
+        }
+      }
+    },
+    {
+      "name": "preview_transient",
+      "title": "瞬态 3D 预览渲染",
+      "domain": "preview",
+      "readOnly": true,
+      "description": "使用 TransientManager 在视口中绘制或清除非破坏性 3D 预览图形（多段线/线/圆/文字），不改图纸 rev，关图自动清理防驱动崩溃。",
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      },
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "action": { "type": "string", "enum": ["add", "replace", "clear", "list"], "default": "add" },
+          "group": { "type": "string", "maxLength": 120, "default": "default" },
+          "primitives": { "type": "array" }
+        }
+      }
+    },
+    {
+      "name": "batch_side_database",
+      "title": "侧数据库无界面跨图批处理",
+      "domain": "batch",
+      "readOnly": false,
+      "description": "使用 new Database(false, true) 后台无界面批量读取或修改多份 DWG 图纸（inspect / export_layers / find_replace_text），不占用 MDI 视口。",
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": false
+      },
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["files"],
+        "properties": {
+          "files": { "type": "array", "minItems": 1, "maxItems": 50, "items": { "type": "string" } },
+          "action": { "type": "string", "enum": ["inspect", "export_layers", "find_replace_text"], "default": "inspect" },
+          "findText": { "type": "string", "maxLength": 500 },
+          "replaceText": { "type": "string", "maxLength": 500, "default": "" },
+          "saveChanges": { "type": "boolean", "default": false }
+        }
+      }
+    }
+  ]
+}

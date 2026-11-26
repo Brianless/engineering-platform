@@ -1,0 +1,90 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Engineering Platform —— AutoCAD / Civil 3D 自动加载清单（ApplicationPlugins 包）。
+
+  ## 双组件（2026-11-22）
+
+  同一份产品，两个运行时，两套产物 —— 这是 AutoCAD 自己的分档方式，不是我们的发明：
+    2022 / Civil 3D 2019 / Civil 3D 2024  → .NET Framework 4.8（net48）
+    2025 及以后                            → .NET 8（net8.0-windows）
+
+  AutoCAD 2025 起运行时换成 .NET 8，net48 程序集会直接抛
+  `Method not found: NamedPipeServerStream..ctor(..., PipeSecurity)`（2026-11-22 22:36 实测）。
+  所以按宿主 Series 段位分派到不同目录，互不干扰：
+
+    Contents/Windows/EngineeringHost.dll        ← net48（R23.0 ~ R24.3）
+    Contents/Windows/net8/EngineeringHost.dll   ← net8 （R25.0 ~ R25.9）
+
+  ## 为什么用 ApplicationPlugins 而不是 NETLOAD
+
+  - 该目录是 AutoCAD 官方「可信」加载位置，不会弹 DLL 安全警告对话框；
+  - 完全注册表无关（方案 18.6「安装即用、无注册表污染」），卸载 = 删目录；
+  - NETLOAD 走非可信路径会弹安全警告，弹窗期间 Application.Idle 不触发，
+    管道请求 2 秒未泵送即被判 E1004，自动化实测必然失败。
+-->
+<ApplicationPackage SchemaVersion="1.0"
+                    AppVersion="1.0.0"
+                    ProductCode="{8F2C1D4A-7B0E-3856-A1C2-D3E4F5061728}"
+                    Name="Engineering Platform"
+                    Description="Engineering Platform v1.0.0：全版本 AutoCAD / Civil 3D 统一宿主插件（含读图语义、全自主写通道、Roslyn 内存编程、CASS/飞时达/Civil 3D 全自动与 LOD 300 BIM 建模）。"
+                    Author="Engineering Platform"
+                    HelpFile="">
+
+  <CompanyDetails Name="Engineering Platform"
+                  Url=""
+                  Email="" />
+
+  <!-- 包级范围覆盖 AutoCAD/Civil 3D 2017–2027+：具体运行时由各 ComponentEntry 决定。 -->
+  <RuntimeRequirements OS="Win64"
+                       Platform="AutoCAD*"
+                       SeriesMin="R21.0"
+                       SeriesMax="R26.9" />
+
+  <Components Description="工程平台宿主">
+
+    <!-- ============ 第一段：net48（AutoCAD 2017–2024 / Civil 3D 2019–2024） ============ -->
+    <ComponentEntry AppName="EngineeringHost"
+                    Version="1.0.0"
+                    ModuleName="./Contents/Windows/EngineeringHost.dll"
+                    AppDescription="Engineering Platform Host v1.0.0 (net48)"
+                    LoadOnAutoCADStartup="True">
+
+      <RuntimeRequirements OS="Win64"
+                           Platform="AutoCAD*"
+                           SeriesMin="R21.0"
+                           SeriesMax="R24.3" />
+
+      <!-- 命令组：ENG_SELFTEST 供无人值守实测，ENG_PANEL 打开降级面板 -->
+      <Commands GroupName="EngineeringPlatform">
+        <Command Global="ENG_SELFTEST" Local="ENG_SELFTEST" />
+        <Command Global="ENG_PANEL" Local="ENG_PANEL" />
+        <Command Global="EPPANEL" Local="EPPANEL" />
+        <Command Global="EPSTATUS" Local="EPSTATUS" />
+      </Commands>
+
+    </ComponentEntry>
+
+    <!-- ============ 第二段：net8（AutoCAD / Civil 3D 2025 及以后） ============ -->
+    <ComponentEntry AppName="EngineeringHost"
+                    Version="1.0.0"
+                    ModuleName="./Contents/Windows/net8/EngineeringHost.dll"
+                    AppDescription="Engineering Platform Host v1.0.0 (net8)"
+                    LoadOnAutoCADStartup="True">
+
+      <RuntimeRequirements OS="Win64"
+                           Platform="AutoCAD*"
+                           SeriesMin="R25.0"
+                           SeriesMax="R26.9" />
+
+      <Commands GroupName="EngineeringPlatform">
+        <Command Global="ENG_SELFTEST" Local="ENG_SELFTEST" />
+        <Command Global="ENG_PANEL" Local="ENG_PANEL" />
+        <Command Global="EPPANEL" Local="EPPANEL" />
+        <Command Global="EPSTATUS" Local="EPSTATUS" />
+      </Commands>
+
+    </ComponentEntry>
+
+  </Components>
+
+</ApplicationPackage>

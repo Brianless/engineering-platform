@@ -1,0 +1,32 @@
+{
+  "version": "1.0",
+  "kind": "layer-map",
+  "note": "默认图层映射：只做通用图元类别（contour/terrain/structure/annotation/frame/hatch/unknown），不含具体工程语义。工程语义必须由企业映射表提供（复制到 %LOCALAPPDATA%\\EngineeringPlatform\\layer-map.json 覆盖本表）。confidencePct 为整数百分比。",
+  "patterns": [
+    { "pattern": "*等高线*", "meaning": "等高线", "category": "contour", "confidencePct": 92 },
+    { "pattern": "*contour*", "meaning": "等高线", "category": "contour", "confidencePct": 92 },
+    { "pattern": "*地形*", "meaning": "地形点/地形线", "category": "terrain", "confidencePct": 90 },
+    { "pattern": "*terrain*", "meaning": "地形点/地形线", "category": "terrain", "confidencePct": 90 },
+
+    { "pattern": "*轴线*", "meaning": "轴线", "category": "structure", "confidencePct": 88 },
+    { "pattern": "*中心线*", "meaning": "中心线", "category": "structure", "confidencePct": 88 },
+    { "pattern": "*墙*", "meaning": "墙体", "category": "structure", "confidencePct": 88 },
+    { "pattern": "*梁*", "meaning": "梁", "category": "structure", "confidencePct": 88 },
+    { "pattern": "*柱*", "meaning": "柱", "category": "structure", "confidencePct": 88 },
+
+    { "pattern": "*尺寸*", "meaning": "尺寸标注", "category": "annotation", "confidencePct": 90 },
+    { "pattern": "*标注*", "meaning": "标注", "category": "annotation", "confidencePct": 90 },
+    { "pattern": "*文字*", "meaning": "注释文字", "category": "annotation", "confidencePct": 88 },
+    { "pattern": "*text*", "meaning": "注释文字", "category": "annotation", "confidencePct": 88 },
+    { "pattern": "*说明*", "meaning": "说明文字", "category": "annotation", "confidencePct": 86 },
+
+    { "pattern": "*图框*", "meaning": "图框", "category": "frame", "confidencePct": 92 },
+    { "pattern": "*frame*", "meaning": "图框", "category": "frame", "confidencePct": 92 },
+    { "pattern": "DEFPOINTS", "meaning": "定义点（不打印）", "category": "unknown", "confidencePct": 80 },
+
+    { "pattern": "*填充*", "meaning": "填充区域", "category": "hatch", "confidencePct": 90 },
+    { "pattern": "*hatch*", "meaning": "填充区域", "category": "hatch", "confidencePct": 90 },
+
+    { "pattern": "0", "meaning": "未分类图元", "category": "unknown", "confidencePct": 70 }
+  ]
+}

@@ -1,0 +1,159 @@
+著作权人名称如需变更，只改本文件顶部与第 1 节的 "Xu-Liang" 两处（其余条款无需改动）。
+Copyright holder name is defined here and in Section 1; change only those two places.
+
+================================================================================
+                        专有软件许可声明（PROPRIETARY）
+================================================================================
+
+Copyright (c) 2026 Xu-Liang. All rights reserved.
+版权所有 (c) 2026 Xu-Liang。保留所有权利。
+
+--------------------------------------------------------------------------------
+第 1 节　权利归属
+--------------------------------------------------------------------------------
+
+1.1 本软件（以下简称"本软件"）指本仓库内的全部原创源代码、文档、协议定义、测试用例、
+    构建脚本及其衍生作品，著作权归 **Xu-Liang**（以下称"著作权人"）所有。
+
+1.2 本软件为**专有软件（proprietary software）**，**不是**开源软件。
+    本文件是权利声明与使用限制，**不是**任何开源许可证（不是 MIT、不是 Apache-2.0、不是 GPL）。
+
+--------------------------------------------------------------------------------
+第 2 节　使用限制
+--------------------------------------------------------------------------------
+
+除著作权人事先出具的**书面许可**外，任何个人或组织**不得**实施下列行为：
+
+  (a) 复制、下载留存、镜像或备份本软件的全部或实质性部分（法律强制允许的情形除外）；
+  (b) 修改、改编、翻译、演绎，或基于本软件创作衍生作品；
+  (c) 分发、发布、出租、出借、销售、转售、再许可（sublicense）或以其他方式向第三方提供本软件；
+  (d) 将本软件的全部或部分用于商业用途、生产经营，或用于向第三方**提供服务**（含 SaaS、
+      托管服务、外包交付、按次计费的工程服务）；
+  (e) 移除、遮蔽或篡改本软件中的任何著作权声明、权利声明或第三方许可声明；
+  (f) 反向工程、反编译或反汇编，除非适用法律明确禁止此类限制。
+
+--------------------------------------------------------------------------------
+第 3 节　第三方组件（重要：不受本声明约束）
+--------------------------------------------------------------------------------
+
+3.1 本软件**包含第三方开源组件**。这些组件**不是**著作权人的原创作品，其著作权归各自作者所有。
+
+3.2 第三方组件**不受本专有声明约束**，各自**继续遵循其原有许可证**。著作权人**不为**这些组件
+    附加任何额外限制，也不减少其原许可证赋予任何人的权利。
+
+3.3 第三方组件清单、许可证类型、版权行与原文归档位置，见：
+
+      - 本仓库根目录 `THIRD-PARTY-NOTICES.md`（清单与义务说明）
+      - `third_party/civil3d-mcp/LICENSE`（MIT，Copyright (c) 2025 lisiting01）
+      - `third_party/new-acad/LICENSE`（MIT，Copyright (c) 2025-2026 Jjo 阿飞）
+      - `third_party/new-acad/server/mcp/LICENSE`（MIT，同上上游）
+      - `third_party/notices/`（随分发的 Apache-2.0 组件原文与 NOTICE 归档）
+
+3.4 若本声明与任何第三方许可证冲突，**就冲突部分而言以该第三方许可证为准**。
+    第三方许可证要求随附的版权声明、许可证原文与 NOTICE，均按原样保留于上述位置。
+
+--------------------------------------------------------------------------------
+第 4 节　Autodesk 相关（不属于本软件）
+--------------------------------------------------------------------------------
+
+4.1 本软件**不包含、不分发**任何 Autodesk 二进制文件或商标素材。`accoremgd`、`AcDbMgd`、`acmgd`、
+    `AecBaseMgd`、`AeccDbMgd`、`AeccPressurePipesMgd`、`Subassembly.*` 等托管程序集仅在**编译期**
+    作为引用使用，且不入库、不随产品分发。
+
+4.2 运行本软件需由使用者**自行安装并取得正版授权**的 AutoCAD / Civil 3D。本软件**非** Autodesk
+    官方产品，与 Autodesk 无隶属、赞助或背书关系。
+
+--------------------------------------------------------------------------------
+第 5 节　不提供担保（NO WARRANTY）
+--------------------------------------------------------------------------------
+
+5.1 本软件按"**现状**（AS IS）"提供，不附带任何明示或默示的担保，包括但不限于对**适销性**、
+    **特定用途适用性**、**不侵权**、**无错误**、**不间断运行**的担保。
+
+5.2 本软件涉及工程图纸与工程数据的读取与呈现。**使用者应自行核验全部输出结果**，
+    不得将本软件的输出直接作为施工、校审、报审或任何工程决策的唯一依据。
+
+--------------------------------------------------------------------------------
+第 6 节　责任限制（LIMITATION OF LIABILITY）
+--------------------------------------------------------------------------------
+
+6.1 在适用法律允许的最大范围内，著作权人**不对**因使用或无法使用本软件而产生的任何直接、
+    间接、偶然、特殊、惩罚性或后果性损害承担责任（包括但不限于工程返工、工期延误、
+    数据丢失、利润损失、业务中断），无论其基于合同、侵权或其他法律理论，也无论著作权人
+    是否已被告知该等损害的可能性。
+
+--------------------------------------------------------------------------------
+第 7 节　其他
+--------------------------------------------------------------------------------
+
+7.1 本声明适用**中华人民共和国法律**（不含其冲突法规则）。
+
+7.2 本声明的任何条款被认定无效或不可执行，不影响其余条款的效力。
+
+7.3 著作权人未行使本声明项下的任何权利，不构成对该权利的放弃。
+
+================================================================================
+                    PROPRIETARY SOFTWARE LICENSE (ENGLISH)
+================================================================================
+
+Copyright (c) 2026 Xu-Liang. All rights reserved.
+
+Section 1 — Ownership
+  This software, including all original source code, documentation, protocol
+  definitions, test suites, build scripts and derivative works contained in this
+  repository (the "Software"), is proprietary and is owned by Xu-Liang (the
+  "Copyright Holder"). This file is a proprietary notice, NOT an open source
+  license.
+
+Section 2 — Restrictions
+  Unless the Copyright Holder has given prior written permission, no person or
+  entity may: (a) copy, retain, mirror or back up the Software or any substantial
+  portion of it; (b) modify, adapt, translate or create derivative works;
+  (c) distribute, publish, rent, lend, sell, resell, sublicense or otherwise make
+  the Software available to any third party; (d) use the Software commercially,
+  in production, or to provide services to third parties (including SaaS, hosted
+  services, outsourced delivery or per-engagement engineering services);
+  (e) remove, obscure or alter any copyright, proprietary or third-party license
+  notice; (f) reverse engineer, decompile or disassemble the Software, except to
+  the extent such restriction is expressly prohibited by applicable law.
+
+Section 3 — Third-Party Components (not covered by this notice)
+  The Software includes third-party open source components. Those components are
+  NOT owned by the Copyright Holder and are NOT subject to this proprietary
+  notice; each remains governed by its own license. The Copyright Holder adds no
+  additional restrictions to, and removes no rights granted by, those licenses.
+  See THIRD-PARTY-NOTICES.md and third_party/notices/ for the component list,
+  license texts and required notices. In case of conflict, the applicable
+  third-party license prevails for that component.
+
+Section 4 — Autodesk
+  The Software contains and distributes no Autodesk binaries or trademarks.
+  Autodesk managed assemblies are used at compile time only and are neither
+  committed nor redistributed. Running the Software requires a licensed copy of
+  AutoCAD / Civil 3D obtained by the user. This is not an Autodesk product and is
+  not affiliated with, sponsored or endorsed by Autodesk.
+
+Section 5 — NO WARRANTY
+  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+  FITNESS FOR A PARTICULAR PURPOSE, NON-INFRINGEMENT, ACCURACY, OR
+  UNINTERRUPTED OPERATION. Users must independently verify all outputs and must
+  not rely on them as the sole basis for construction, review, submission or any
+  engineering decision.
+
+Section 6 — LIMITATION OF LIABILITY
+  TO THE MAXIMUM EXTENT PERMITTED BY APPLICABLE LAW, THE COPYRIGHT HOLDER SHALL
+  NOT BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY,
+  PUNITIVE OR CONSEQUENTIAL DAMAGES (INCLUDING BUT NOT LIMITED TO REWORK, DELAY,
+  LOSS OF DATA, LOSS OF PROFITS OR BUSINESS INTERRUPTION) ARISING OUT OF OR
+  RELATING TO THE USE OF OR INABILITY TO USE THE SOFTWARE, WHETHER BASED IN
+  CONTRACT, TORT OR ANY OTHER LEGAL THEORY, AND WHETHER OR NOT THE COPYRIGHT
+  HOLDER HAS BEEN ADVISED OF THE POSSIBILITY OF SUCH DAMAGES.
+
+Section 7 — Miscellaneous
+  This notice is governed by the laws of the People's Republic of China, excluding
+  its conflict-of-law rules. If any provision is held invalid or unenforceable,
+  the remaining provisions remain in full force. Failure to enforce any right is
+  not a waiver of that right.
+
+================================================================================

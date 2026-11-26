@@ -1,0 +1,6 @@
+# Engineering Platform v1.0.0 — route_solver (JTG D20-2017 自动选线与经济造价引擎) 依赖清单
+numpy>=1.24.0
+scipy>=1.10.0
+shapely>=2.0.0
+# 可选（Windows 环境下通过本机 Microsoft Excel COM 直接套用纬地 HintCAD .xls 模板时需安装）:
+# pywin32>=306

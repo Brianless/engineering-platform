@@ -1,0 +1,116 @@
+{
+  "protocolVersion": "1.0",
+  "note": "MCP 与宿主共用配置样例。运行时复制到 %LOCALAPPDATA%\\EngineeringPlatform\\config.json；优先级：内置默认 < 本文件 < %LOCALAPPDATA% 配置 < 同名 *.local.json < 环境变量 EP_XXX。",
+  "mcp": {
+    "name": "engineering-mcp",
+    "title": "WorkBuddy 工程能力 MCP（M0 只读）",
+    "version": "0.1.0",
+    "supportedProtocolVersions": [
+      "2025-06-18",
+      "2025-03-26",
+      "2024-11-05"
+    ],
+    "preferredProtocolVersion": "2025-06-18",
+    "instructions": "本服务提供真实 CAD 图纸的只读语义访问。读取顺序固定：read_overview → read_layers → read_query → read_describe；需要看图时调用 read_preview。返回体受预算限制，出现 truncated 时按 drilldown 建议下钻。Civil 3D 原生能力本期不可用，若图纸含代理对象会以 anomalies 形式告知。禁止臆测未返回的工程参数。"
+  },
+  "host": {
+    "version": "0.1.0",
+    "app": "acad",
+    "requestTimeoutMs": 15000,
+    "minTimeoutMs": 500,
+    "maxTimeoutMs": 60000,
+    "dispatchWaitMs": 2000,
+    "queueCapacity": 64,
+    "maxInstances": 4,
+    "messageLimitBytes": 1048576,
+    "maxResultBytesHost": 358400,
+    "entityLimit": 50000,
+    "previewDrawOpLimit": 20000
+  },
+  "heartbeat": {
+    "intervalMs": 5000,
+    "missLimit": 3,
+    "hostIdleCloseMs": 15000
+  },
+  "budget": {
+    "maxResultChars": 6000,
+    "maxSummaryChars": 1200,
+    "maxImageBytes": 1048576,
+    "maxItemsAfterTruncate": 10
+  },
+  "instances": {
+    "dir": "%LOCALAPPDATA%\\EngineeringPlatform\\instances",
+    "preferredInstanceId": null,
+    "aliveProbeTimeoutMs": 300
+  },
+  "bridge": {
+    "note": "N03 底层桥（net8 档）：relay ↔ 插件 TCP。端口默认每次随机分配（上游固定 19876/8080 在多实例下会互抢）。令牌由 PipeGuard 每实例生成，只经环境变量传递、不落盘。",
+    "portRangeStart": 42000,
+    "portRangeEnd": 59000,
+    "tokenEnv": "EP_BRIDGE_TOKEN",
+    "relayPortEnv": "EP_RELAY_PORT",
+    "pluginPortEnv": "EP_PLUGIN_PORT",
+    "callTimeoutMs": 35000,
+    "nodePath": null
+  },
+  "connect": {
+    "retryDelaysMs": [
+      200,
+      500,
+      1000
+    ],
+    "connectTimeoutMs": 3000
+  },
+  "store": {
+    "dbPath": "%LOCALAPPDATA%\\EngineeringPlatform\\projects\\default.db",
+    "busyTimeoutMs": 3000
+  },
+  "paths": {
+    "allowedReadRoots": [
+      "%LOCALAPPDATA%\\EngineeringPlatform\\cache",
+      "%LOCALAPPDATA%\\EngineeringPlatform\\exports",
+      "%LOCALAPPDATA%\\EngineeringPlatform\\projects"
+    ],
+    "allowedWriteRoots": [
+      "%LOCALAPPDATA%\\EngineeringPlatform\\cache",
+      "%LOCALAPPDATA%\\EngineeringPlatform\\logs",
+      "%LOCALAPPDATA%\\EngineeringPlatform\\projects"
+    ],
+    "deniedRoots": [
+      "%WINDIR%",
+      "%PROGRAMFILES%",
+      "%PROGRAMFILES(X86)%",
+      "%USERPROFILE%\\Desktop",
+      "%USERPROFILE%\\Documents"
+    ]
+  },
+  "log": {
+    "dir": "%LOCALAPPDATA%\\EngineeringPlatform\\logs",
+    "level": "INFO",
+    "maxBytes": 10485760,
+    "keepDays": 7
+  },
+  "preview": {
+    "cacheDir": "%LOCALAPPDATA%\\EngineeringPlatform\\cache\\preview",
+    "defaultWidth": 1200,
+    "defaultHeight": 800,
+    "maxWidth": 2400,
+    "maxHeight": 1600,
+    "renderMode": "schematic",
+    "note": "结构示意图，非出图成果"
+  },
+  "mapping": {
+    "layerMap": "%LOCALAPPDATA%\\EngineeringPlatform\\layer-map.json",
+    "blockMap": "%LOCALAPPDATA%\\EngineeringPlatform\\block-map.json"
+  },
+  "semanticCache": {
+    "ttlMs": 5000
+  },
+  "write": {
+    "_note": "M1/v3.0 写通道。enabled 开启写域；autoApprove=true 时全自主静默执行免人工弹窗。改完要重启 CAD。",
+    "enabled": false,
+    "autoApprove": false,
+    "tokenTtlMs": 120000,
+    "secretPath": ""
+  }
+}

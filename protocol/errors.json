@@ -1,0 +1,264 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://engineering-platform.local/protocol/errors.json",
+  "title": "Engineering Platform Error & Warning Code Table (protocol 1.0)",
+  "description": "错误码唯一真相源。E#### 由宿主返回；C#### 由 MCP 层返回（链路/客户端侧）；W#### 为非阻断告警。M0 只读阶段实际可能返回的集合在 m0Active 中标注。",
+  "version": "1.0",
+  "namingRule": "E + 4 位数字；首位含义：1=请求与目标检查，2=能力与代码，3=执行与验证，4=版本与协议，5=资源，6=权限。",
+  "errors": [
+    {
+      "code": "E1001",
+      "message": "参数无效",
+      "meaning": "参数未通过工具 inputSchema，或帧载荷超限/非法 JSON",
+      "detailExamples": [
+        "invalid_json",
+        "message_too_large",
+        "limit out of range [1,100]"
+      ],
+      "handler": "返回具体字段（error.field），提示修正",
+      "retriable": true,
+      "m0Active": true
+    },
+    {
+      "code": "E1002",
+      "message": "目标图纸或对象与审批不符",
+      "meaning": "目标指纹/对象范围与审批令牌绑定的不一致；对象不存在或已变化",
+      "handler": "要求重新审批；绝不猜测对应对象",
+      "retriable": false,
+      "m0Active": true,
+      "note": "M0 预留；M1 起真实可达：approval_params_mismatch / approval_target_mismatch / approval_document_mismatch"
+    },
+    {
+      "code": "E1003",
+      "message": "宿主忙碌",
+      "meaning": "CAD 有命令在执行（CMDACTIVE != 0）、队列已满、或已有活动会话",
+      "detailExamples": [
+        "cmdactive=0x1",
+        "queue_full",
+        "session_busy"
+      ],
+      "handler": "返回当前命令状态，稍后重试，不无限等待",
+      "retriable": true,
+      "m0Active": true
+    },
+    {
+      "code": "E1004",
+      "message": "存在模态对话框",
+      "meaning": "主线程调度超时（Application.Idle 停止泵送），通常由模态窗体引起",
+      "detailExamples": [
+        "idle_not_pumping"
+      ],
+      "handler": "提示用户先关闭对话框",
+      "retriable": true,
+      "m0Active": true
+    },
+    {
+      "code": "E1005",
+      "message": "文档被锁或只读",
+      "meaning": "无打开的文档、文档只读、或文档被其他事务锁定",
+      "detailExamples": [
+        "no_open_document",
+        "document_read_only"
+      ],
+      "handler": "提示签出或解锁",
+      "retriable": true,
+      "m0Active": true
+    },
+    {
+      "code": "E1006",
+      "message": "审批令牌无效或过期",
+      "meaning": "approvalToken 非空、无效或已过期",
+      "handler": "重新审批",
+      "retriable": false,
+      "m0Active": true,
+      "note": "M0 收到任何非空 approvalToken 即返回此码"
+    },
+    {
+      "code": "E2001",
+      "message": "API 索引中不存在该能力",
+      "meaning": "工具名不在目录中（含拼写错误）",
+      "handler": "不执行，回报缺口；建议 Agent 用 tools/list 核对",
+      "retriable": true,
+      "m0Active": true
+    },
+    {
+      "code": "E2002",
+      "message": "动态代码编译失败",
+      "meaning": "动态 C# 编译失败",
+      "handler": "返回诊断，允许修订",
+      "retriable": true,
+      "m0Active": false
+    },
+    {
+      "code": "E2003",
+      "message": "命中禁止能力",
+      "meaning": "调用了写域工具（write_ 或 cad_/civil_/dyn_/file_/rev_/p3d_/calc_/skill_）或禁止的 API",
+      "detailExamples": [
+        "write_channel_disabled",
+        "write_channel_disabled_m0",
+        "only_write_namespace_allowed"
+      ],
+      "handler": "拒绝并记录审计",
+      "retriable": false,
+      "m0Active": true,
+      "note": "写通道未开启时统一以本码拒绝；开启后底层方法名前缀仍一律拒绝"
+    },
+    {
+      "code": "E3001",
+      "message": "后置验证失败",
+      "meaning": "回读结果与后置条件不符（写路径：回读与后置条件不符；读路径：结果缺 confidence/basis 等必需依据字段）",
+      "detailExamples": [
+        "post_validation_failed",
+        "object.basis: missing",
+        "items[0].handle: not_hex_handle"
+      ],
+      "handler": "回滚或标记，不进入正式成果",
+      "retriable": false,
+      "m0Active": true,
+      "note": "N04-B 起 M0 可达：M0 无写入，但 read_civil_object / read_civil_list 的结果必须过网关后置校验（docs/08 §4.3 #2/#3 要求结果带 confidence 与 basis，缺了视为缺陷）"
+    },
+    {
+      "code": "E3002",
+      "message": "结果不明",
+      "meaning": "执行超时或连接断开，无法确认结果",
+      "handler": "进入对账流程（task_reconcile），不自动重放",
+      "retriable": false,
+      "m0Active": true
+    },
+    {
+      "code": "E4001",
+      "message": "协议或宿主版本不匹配",
+      "meaning": "protocolVersion 形状非法或主版本不等；或 sessionToken 未知/过期；或未握手直接发请求",
+      "detailExamples": [
+        "invalid_protocol_version",
+        "major_mismatch",
+        "handshake_required",
+        "session_expired"
+      ],
+      "handler": "关闭写入，仅保留查询；令牌过期时允许一次重新 hello",
+      "retriable": false,
+      "m0Active": true
+    },
+    {
+      "code": "E5001",
+      "message": "磁盘空间或配额不足",
+      "meaning": "预览图/日志/项目库落盘失败",
+      "detailExamples": [
+        "preview_write_failed",
+        "disk_full"
+      ],
+      "handler": "停止并提示清磁盘",
+      "retriable": true,
+      "m0Active": true
+    },
+    {
+      "code": "E6001",
+      "message": "角色权限不足",
+      "meaning": "当前角色无权执行该动作",
+      "handler": "提示申请权限路径",
+      "retriable": false,
+      "m0Active": false
+    },
+    {
+      "code": "C1001",
+      "message": "未发现可用宿主",
+      "meaning": "MCP 侧：实例发现目录为空，或发现文件全部失效",
+      "handler": "提示在 AutoCAD 中 NETLOAD 插件后重试",
+      "retriable": true,
+      "m0Active": true,
+      "owner": "mcp"
+    },
+    {
+      "code": "C1002",
+      "message": "宿主实例不唯一",
+      "meaning": "多个实例且无法按 preferredInstanceId 或启动时间裁决",
+      "handler": "返回候选列表，请用户/配置指定",
+      "retriable": true,
+      "m0Active": true,
+      "owner": "mcp"
+    },
+    {
+      "code": "C1003",
+      "message": "宿主不可达",
+      "meaning": "管道连接被拒/超时，重试 3 次后失败",
+      "handler": "检查 CAD 是否响应，或查看降级面板",
+      "retriable": true,
+      "m0Active": true,
+      "owner": "mcp"
+    },
+    {
+      "code": "C1004",
+      "message": "路径不在白名单",
+      "meaning": "请求的文件路径未通过白名单校验（含 ../ 逃逸、UNC、盘符相对路径）",
+      "handler": "拒绝访问并记录审计",
+      "retriable": false,
+      "m0Active": true,
+      "owner": "mcp"
+    },
+    {
+      "code": "C1005",
+      "message": "配置无效",
+      "meaning": "config.json 解析失败、协议版本常量不合法、白名单为空",
+      "handler": "进程以退出码 2 结束并打印具体字段",
+      "retriable": false,
+      "m0Active": true,
+      "owner": "mcp"
+    }
+  ],
+  "warnings": [
+    {
+      "code": "W1001",
+      "message": "Civil 3D 原生 API 不可用",
+      "detail": "civil_api_absent：仅存在 Object Enabler，相关对象按代理对象处理",
+      "m0Active": true
+    },
+    {
+      "code": "W1002",
+      "message": "客户端协议次版本高于宿主",
+      "detail": "client_ahead：仅使用宿主已支持字段",
+      "m0Active": true
+    },
+    {
+      "code": "W1003",
+      "message": "心跳超时",
+      "detail": "heartbeat_timeout：连接被判死并关闭",
+      "m0Active": true
+    },
+    {
+      "code": "W1004",
+      "message": "图纸已变化",
+      "detail": "fingerprint_drift：请求携带的指纹与当前图纸不一致，只读不阻断",
+      "m0Active": true
+    },
+    {
+      "code": "W1005",
+      "message": "采集耗时偏高",
+      "detail": "slow_extract：单次采集 > 3 s，建议按范围下钻",
+      "m0Active": true
+    },
+    {
+      "code": "W1006",
+      "message": "字体回退",
+      "detail": "font_fallback：未找到中文字体，预览图使用英文标注",
+      "m0Active": true
+    },
+    {
+      "code": "W1007",
+      "message": "工具目录不一致",
+      "detail": "catalog_mismatch：MCP 与宿主的 toolCatalogHash 不同，可能出现参数解释差异",
+      "m0Active": true
+    },
+    {
+      "code": "W1008",
+      "message": "结果被截断",
+      "detail": "result_truncated：超出预算，按 drilldown 建议下钻",
+      "m0Active": true
+    },
+    {
+      "code": "W1009",
+      "message": "对象数量超采集上限",
+      "detail": "entity_limit_reached：按句柄升序截断，counts 仍为真实总数",
+      "m0Active": true
+    }
+  ]
+}

@@ -1,0 +1,88 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs">
+  <Package Name="Engineering Platform Civil 3D v3.0"
+           Manufacturer="Engineering Platform"
+           Version="3.0.0.0"
+           UpgradeCode="E4F9A1C2-8B3D-4A7E-9C12-6F8D2B5A3E90"
+           Scope="perUser">
+
+    <MajorUpgrade DowngradeErrorMessage="A newer version of [ProductName] is already installed." />
+    <MediaTemplate EmbedCab="yes" />
+
+    <StandardDirectory Id="AppDataFolder">
+      <Directory Id="AutodeskDir" Name="Autodesk">
+        <Directory Id="AppPluginsDir" Name="ApplicationPlugins">
+          <Directory Id="BundleDir" Name="EngineeringPlatform.bundle">
+            <Directory Id="ContentsDir" Name="Contents">
+              <Directory Id="WinDir" Name="Windows">
+                <Directory Id="Net8Dir" Name="net8" />
+              </Directory>
+            </Directory>
+          </Directory>
+        </Directory>
+      </Directory>
+    </StandardDirectory>
+
+    <StandardDirectory Id="LocalAppDataFolder">
+      <Directory Id="EpLocalRoot" Name="EngineeringPlatform">
+        <Directory Id="EpBinDir" Name="bin" />
+        <Directory Id="EpInstallerDir" Name="installer" />
+      </Directory>
+    </StandardDirectory>
+
+    <ComponentGroup Id="BundleComponents">
+      <Component Id="PackageContentsXml" Directory="BundleDir" Guid="91A2B3C4-1111-4AAA-8BBB-000000000001">
+        <File Source="$(var.StageDir)\bundle\PackageContents.xml" />
+        <RegistryValue Root="HKCU" Key="Software\EngineeringPlatform\v3" Name="BundleInstalled" Type="integer" Value="1" KeyPath="yes" />
+      </Component>
+
+      <Component Id="HostNet48Dll" Directory="WinDir" Guid="91A2B3C4-1111-4AAA-8BBB-000000000002">
+        <File Source="$(var.StageDir)\bundle\Contents\Windows\EngineeringHost.dll" />
+        <RegistryValue Root="HKCU" Key="Software\EngineeringPlatform\v3" Name="Net48Installed" Type="integer" Value="1" KeyPath="yes" />
+      </Component>
+
+      <Component Id="HostNet8Dll" Directory="Net8Dir" Guid="91A2B3C4-1111-4AAA-8BBB-000000000003">
+        <File Source="$(var.StageDir)\bundle\Contents\Windows\net8\EngineeringHost.dll" />
+        <RegistryValue Root="HKCU" Key="Software\EngineeringPlatform\v3" Name="Net8Installed" Type="integer" Value="1" KeyPath="yes" />
+      </Component>
+
+      <!-- AutoCAD / Civil 3D 2025 (R25.0) Demand Load -->
+      <Component Id="RegAcad2025" Directory="Net8Dir" Guid="91A2B3C4-1111-4AAA-8BBB-000000000004">
+        <RegistryKey Root="HKCU" Key="Software\Autodesk\AutoCAD\R25.0\ACAD-8100:804\Applications\EngineeringPlatform">
+          <RegistryValue Name="DESCRIPTION" Type="string" Value="Engineering Platform Autonomous Host v3.0" />
+          <RegistryValue Name="LOADCTRLS" Type="integer" Value="3" />
+          <RegistryValue Name="MANAGED" Type="integer" Value="1" />
+          <RegistryValue Name="LOADER" Type="string" Value="[Net8Dir]EngineeringHost.dll" KeyPath="yes" />
+        </RegistryKey>
+      </Component>
+
+      <!-- AutoCAD / Civil 3D 2024 (R24.3) Demand Load -->
+      <Component Id="RegAcad2024" Directory="WinDir" Guid="91A2B3C4-1111-4AAA-8BBB-000000000005">
+        <RegistryKey Root="HKCU" Key="Software\Autodesk\AutoCAD\R24.3\ACAD-7100:804\Applications\EngineeringPlatform">
+          <RegistryValue Name="DESCRIPTION" Type="string" Value="Engineering Platform Autonomous Host v3.0" />
+          <RegistryValue Name="LOADCTRLS" Type="integer" Value="3" />
+          <RegistryValue Name="MANAGED" Type="integer" Value="1" />
+          <RegistryValue Name="LOADER" Type="string" Value="[WinDir]EngineeringHost.dll" KeyPath="yes" />
+        </RegistryKey>
+      </Component>
+
+      <!-- Standalone C# MCP Gateway (ep-mcp.exe, zero Python dependency) -->
+      <Component Id="GatewayExe" Directory="EpBinDir" Guid="91A2B3C4-1111-4AAA-8BBB-000000000006">
+        <File Source="$(var.StageDir)\bin\ep-mcp.exe" />
+        <RegistryValue Root="HKCU" Key="Software\EngineeringPlatform\v3" Name="GatewayInstalled" Type="integer" Value="1" KeyPath="yes" />
+      </Component>
+
+      <!-- Code-signing cert + headless verifier -->
+      <Component Id="InstallerAssets" Directory="EpInstallerDir" Guid="91A2B3C4-1111-4AAA-8BBB-000000000007">
+        <File Source="$(var.StageDir)\installer\EngineeringPlatformDev.cer" />
+        <File Source="$(var.StageDir)\installer\smoke_headless.ps1" />
+        <RegistryValue Root="HKCU" Key="Software\EngineeringPlatform\v3" Name="AssetsInstalled" Type="integer" Value="1" KeyPath="yes" />
+      </Component>
+    </ComponentGroup>
+
+    <Feature Id="MainFeature" Title="Engineering Platform v3.0" Level="1">
+      <ComponentGroupRef Id="BundleComponents" />
+      <ComponentGroupRef Id="Net8Deps" />
+    </Feature>
+  </Package>
+</Wix>

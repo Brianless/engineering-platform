@@ -1,0 +1,33 @@
+# Build outputs
+**/bin/
+**/obj/
+**/publish/
+installer/dist/
+installer/stage/
+setup/payload/
+
+# Python
+**/__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# Secrets, certs, local state
+*.pfx
+*.p12
+*.snk
+*.key
+*.pem
+*.db
+*.db-shm
+*.db-wal
+*.log
+.env
+config/config.local.json
+
+# IDE & OS
+.vs/
+.vscode/
+.idea/
+Thumbs.db
+Desktop.ini
